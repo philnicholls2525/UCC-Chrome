@@ -1,0 +1,393 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chrome UCL V2</title>
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:Arial,Helvetica,sans-serif;
+background:
+radial-gradient(circle at top,#243b6b 0%,transparent 30%),
+linear-gradient(135deg,#02040a,#0c1020 60%,#02040a);
+color:white;
+overflow-x:hidden;
+}
+.app{
+width:min(1200px,95vw);
+margin:auto;
+padding:20px 0 60px;
+}
+h1{
+font-size:4rem;
+margin:0;
+background:linear-gradient(90deg,#fff,#79eaff,#b985ff,#fff);
+-webkit-background-clip:text;
+color:transparent;
+}
+.subtitle{color:#b6bfd6}
+.controls{
+display:flex;
+gap:10px;
+margin:20px 0;
+flex-wrap:wrap;
+}
+button{
+border:0;
+padding:14px 20px;
+border-radius:16px;
+font-weight:900;
+cursor:pointer;
+background:linear-gradient(135deg,#34f0ff,#8656ff,#ff4bcf);
+color:white;
+}
+.stage{
+height:560px;
+border:1px solid rgba(255,255,255,.15);
+border-radius:28px;
+background:rgba(255,255,255,.05);
+backdrop-filter:blur(14px);
+display:flex;
+align-items:center;
+justify-content:center;
+position:relative;
+overflow:hidden;
+}
+.pack{
+width:200px;
+height:300px;
+border-radius:22px;
+position:absolute;
+cursor:pointer;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:900;
+font-size:1.8rem;
+text-align:center;
+background:
+repeating-linear-gradient(45deg,#161b31 0 20px,#20284a 20px 40px);
+border:2px solid rgba(255,255,255,.35);
+box-shadow:0 25px 80px rgba(0,0,0,.6),0 0 40px rgba(130,90,255,.35);
+transition:.4s ease;
+}
+.pack:hover{transform:scale(1.03)}
+.pack.hidden{opacity:0;pointer-events:none;transform:scale(.5) rotate(20deg)}
+.stack{
+position:relative;
+width:260px;
+height:380px;
+display:none;
+}
+.card-back,.card{
+position:absolute;
+width:100%;
+height:100%;
+border-radius:22px;
+transition:.4s ease;
+}
+.card-back{
+background:
+linear-gradient(135deg,#101727,#273558);
+border:2px solid rgba(255,255,255,.2);
+box-shadow:0 16px 40px rgba(0,0,0,.5);
+}
+.card-back:nth-child(1){top:0}
+.card-back:nth-child(2){top:6px}
+.card-back:nth-child(3){top:12px}
+.card-back:nth-child(4){top:18px}
+.card-back:nth-child(5){top:24px}
+.card{
+display:none;
+overflow:hidden;
+box-shadow:0 25px 60px rgba(0,0,0,.65);
+}
+.card.active{display:block}
+.card-inner{
+position:absolute;
+inset:0;
+padding:10px;
+display:flex;
+flex-direction:column;
+justify-content:space-between;
+}
+.top{
+display:flex;
+justify-content:space-between;
+font-size:.7rem;
+font-weight:900;
+}
+.player{
+flex:1;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:4rem;
+font-weight:900;
+}
+.bottom{
+background:rgba(0,0,0,.55);
+padding:10px;
+border-radius:14px;
+}
+.serial{
+position:absolute;
+right:12px;
+bottom:72px;
+background:rgba(0,0,0,.6);
+padding:5px 8px;
+border-radius:10px;
+font-size:.75rem;
+font-weight:900;
+}
+.hit-cover{
+position:absolute;
+inset:0;
+background:
+linear-gradient(135deg,#050505,#131313);
+display:none;
+align-items:center;
+justify-content:center;
+font-size:2rem;
+font-weight:900;
+letter-spacing:.08em;
+text-transform:uppercase;
+z-index:50;
+cursor:pointer;
+}
+.hit-cover.show{
+display:flex;
+animation:pulse 1.2s infinite;
+}
+@keyframes pulse{
+0%,100%{box-shadow:0 0 10px #fff}
+50%{box-shadow:0 0 35px #8d6dff}
+}
+.reveal-note{
+position:absolute;
+bottom:25px;
+font-size:.9rem;
+color:#d2d8ea;
+}
+.base{background:linear-gradient(135deg,#d7dce8,#697791,#fff)}
+.future{background:linear-gradient(135deg,#0cf0ff,#0055ff,#071d2f)}
+.kings{background:linear-gradient(135deg,#e0c15d,#151515,#000)}
+.deco{background:linear-gradient(135deg,#ffffff,#cfe0ff,#0040aa)}
+.floodlights{background:linear-gradient(135deg,#04111e,#1357b0,#020409)}
+.colour{background:conic-gradient(#ff3366,#ffde3d,#33ffb2,#41d8ff,#8e5cff,#ff3366)}
+.anime{background:linear-gradient(135deg,#220033,#7b21ff,#ff52bc)}
+.kaleidoscope{background:conic-gradient(#ff2f7f,#ffdc45,#55ff8e,#52e1ff,#8d5bff,#ff2f7f)}
+.auto{background:linear-gradient(135deg,#dfe6f7,#4b5774,#fff)}
+.parallel-red{outline:4px solid #ff244c}
+.parallel-super{outline:5px solid gold}
+.collection{
+margin-top:30px;
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+gap:12px;
+}
+.mini{
+background:rgba(255,255,255,.06);
+padding:12px;
+border-radius:16px;
+border:1px solid rgba(255,255,255,.1);
+}
+.mini small{display:block;color:#bfc8de;margin-top:4px}
+.stats{
+display:flex;
+gap:12px;
+margin-top:15px;
+flex-wrap:wrap;
+}
+.stat{
+background:rgba(255,255,255,.07);
+padding:14px;
+border-radius:18px;
+min-width:140px;
+}
+.stat strong{
+display:block;
+font-size:2rem;
+}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>Chrome UCL</h1>
+<p class="subtitle">V2 realistic pack opening prototype</p>
+
+<div class="controls">
+<button id="openPackBtn">Open Pack</button>
+</div>
+
+<div class="stats">
+<div class="stat"><strong id="total">0</strong>Total Cards</div>
+<div class="stat"><strong id="unique">0</strong>Unique Cards</div>
+</div>
+
+<div class="stage">
+<div class="pack" id="pack">CHROME<br>UCL<br>PACK</div>
+
+<div class="stack" id="stack">
+<div class="card-back"></div>
+<div class="card-back"></div>
+<div class="card-back"></div>
+<div class="card-back"></div>
+<div class="card-back"></div>
+
+<div class="hit-cover" id="hitCover">HIT</div>
+
+<div class="reveal-note" id="note">Tap to reveal next card</div>
+</div>
+</div>
+
+<h2>Collection Binder</h2>
+<div class="collection" id="collection"></div>
+
+</div>
+
+<script>
+const cardsPool = [
+{set:"Base",cls:"base",player:"Jude Bellingham",team:"Real Madrid"},
+{set:"Base",cls:"base",player:"Lamine Yamal",team:"Barcelona"},
+{set:"Future Stars",cls:"future",player:"Rio Ngumoha",team:"Liverpool"},
+{set:"Kings of Europe",cls:"kings",player:"Cristiano Ronaldo",team:"Legend"},
+{set:"Deco",cls:"deco",player:"Pedri",team:"Barcelona"},
+{set:"Floodlights",cls:"floodlights",player:"Max Dowman",team:"Arsenal",ssp:true},
+{set:"Colour Blast",cls:"colour",player:"Pelé",team:"Legend",ssp:true},
+{set:"Anime",cls:"anime",player:"Estevao Willian",team:"Chelsea",ssp:true},
+{set:"Kaleidoscope",cls:"kaleidoscope",player:"Mbappé",team:"Real Madrid",ssp:true},
+{set:"Chrome Auto",cls:"auto",player:"Lennart Karl",team:"Bayern",auto:true}
+];
+
+let packCards=[];
+let currentIndex=0;
+
+const collection = JSON.parse(localStorage.getItem("uclCollectionV2")||"[]");
+
+function initials(name){
+return name.split(" ").map(x=>x[0]).join("").slice(0,3);
+}
+
+function generatePack(){
+const arr=[];
+for(let i=0;i<5;i++){
+let c={...cardsPool[Math.floor(Math.random()*cardsPool.length)]};
+
+if(Math.random()<0.08){
+c.parallel="Red /5";
+c.serial=Math.ceil(Math.random()*5)+"/5";
+c.parallelClass="parallel-red";
+}
+
+if(Math.random()<0.015){
+c.parallel="Superfractor 1/1";
+c.serial="1/1";
+c.parallelClass="parallel-super";
+}
+
+arr.push(c);
+}
+return arr;
+}
+
+function renderCard(card){
+const div=document.createElement("div");
+div.className=`card active ${card.cls} ${card.parallelClass||""}`;
+
+const needsCover = card.ssp || card.auto || card.parallel;
+
+div.innerHTML=`
+<div class="card-inner">
+<div class="top">
+<span>UCL</span>
+<span>TOPPS CHROME</span>
+</div>
+
+${card.serial ? `<div class="serial">${card.serial}</div>`:""}
+
+<div class="player">${initials(card.player)}</div>
+
+<div class="bottom">
+<strong>${card.player}</strong><br>
+<small>${card.team} · ${card.set}${card.parallel ? " · "+card.parallel : ""}</small>
+</div>
+</div>
+`;
+
+const stack=document.getElementById("stack");
+stack.appendChild(div);
+
+if(needsCover){
+const cover=document.getElementById("hitCover");
+cover.classList.add("show");
+
+cover.onclick=()=>{
+cover.classList.remove("show");
+};
+}
+
+collection.push(card);
+localStorage.setItem("uclCollectionV2",JSON.stringify(collection));
+updateCollection();
+}
+
+function nextReveal(){
+if(currentIndex>=packCards.length){
+document.getElementById("note").innerText="Pack complete";
+return;
+}
+renderCard(packCards[currentIndex]);
+currentIndex++;
+}
+
+document.getElementById("openPackBtn").onclick=()=>{
+document.getElementById("pack").classList.remove("hidden");
+document.getElementById("stack").style.display="none";
+};
+
+document.getElementById("pack").onclick=()=>{
+packCards=generatePack();
+currentIndex=0;
+
+document.getElementById("pack").classList.add("hidden");
+document.getElementById("stack").style.display="block";
+
+document.querySelectorAll(".card").forEach(e=>e.remove());
+
+nextReveal();
+
+document.getElementById("stack").onclick=(e)=>{
+if(e.target.id==="hitCover") return;
+nextReveal();
+}
+};
+
+function updateCollection(){
+document.getElementById("total").innerText=collection.length;
+
+const unique=new Set(collection.map(c=>c.player+"-"+c.set+"-"+(c.parallel||"base")));
+document.getElementById("unique").innerText=unique.size;
+
+const el=document.getElementById("collection");
+el.innerHTML="";
+
+collection.slice().reverse().slice(0,30).forEach(c=>{
+const d=document.createElement("div");
+d.className="mini";
+d.innerHTML=`
+<strong>${c.player}</strong>
+<small>${c.set}</small>
+<small>${c.parallel || "Base"}</small>
+`;
+el.appendChild(d);
+});
+}
+
+updateCollection();
+</script>
+</body>
+</html>
