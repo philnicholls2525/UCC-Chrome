@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chrome UCL Pack Opening Game V1</title>
+  <style>
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #06070c;
+  --panel: rgba(255,255,255,0.07);
+  --line: rgba(255,255,255,0.14);
+  --text: #f7f7ff;
+  --muted: #a8adbf;
+  --chrome: linear-gradient(135deg, #f9f9ff, #9da5ba, #ffffff, #646b80);
+  --purple: #8f50ff;
+  --orange: #ff8a2a;
+  --red: #ff274b;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(88, 80, 255, 0.28), transparent 28%),
+    radial-gradient(circle at 80% 10%, rgba(255, 47, 203, 0.18), transparent 24%),
+    linear-gradient(140deg, #030309, #0b1020 55%, #030309);
+}
+
+.app {
+  width: min(1220px, 96vw);
+  margin: 0 auto;
+  padding: 28px 0 60px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: stretch;
+  margin-bottom: 22px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #79ecff;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 6vw, 5rem);
+  line-height: 0.9;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #ffffff, #7be9ff, #ca8cff, #ffffff);
+  -webkit-background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 20px rgba(139, 95, 255, 0.35));
+}
+
+.sub {
+  max-width: 620px;
+  color: var(--muted);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  min-width: min(420px, 100%);
+}
+
+.stats div, .panel, .controls, .pack-stage, .hit-banner {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  border-radius: 24px;
+}
+
+.stats div {
+  padding: 18px;
+  text-align: center;
+}
+
+.stats span {
+  display: block;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.stats small {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+button {
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 20px;
+  color: white;
+  background: linear-gradient(135deg, #2ee8ff, #8f50ff, #ff46d4);
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(96, 80, 255, 0.25);
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+button.secondary {
+  background: linear-gradient(135deg, #262e45, #6d5dff);
+}
+
+button.ghost {
+  background: rgba(255,255,255,0.08);
+  box-shadow: none;
+}
+
+.pack-stage {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.pack {
+  width: 175px;
+  height: 250px;
+  border-radius: 22px;
+  border: 2px solid rgba(255,255,255,0.35);
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(45deg, #191c2e 0 18px, #242944 18px 36px),
+    linear-gradient(135deg, #111525, #2b3157);
+  box-shadow: 0 28px 80px rgba(0,0,0,0.5), 0 0 55px rgba(93, 86, 255, 0.35);
+}
+
+.pack::before {
+  content: "";
+  position: absolute;
+  inset: -55%;
+  background: conic-gradient(#7cf7ff, #9b62ff, #ff44c7, #ffe95d, #7cf7ff);
+  opacity: 0.26;
+  animation: spin 5s linear infinite;
+}
+
+.pack-text {
+  position: relative;
+  z-index: 1;
+  font-weight: 950;
+  text-align: center;
+  font-size: 1.45rem;
+  line-height: 1.05;
+  text-shadow: 0 3px 0 black, 0 0 20px white;
+}
+
+.pack.rip {
+  animation: rip 0.8s ease forwards;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes rip {
+  0% { transform: scale(1) rotate(0); opacity: 1; }
+  55% { transform: scale(1.14) rotate(-5deg); opacity: 1; }
+  100% { transform: scale(0.45) rotate(16deg); opacity: 0; }
+}
+
+.hit-banner {
+  padding: 18px;
+  margin-bottom: 18px;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 18px;
+  margin-bottom: 26px;
+  perspective: 1000px;
+}
+
+.card-wrap {
+  animation: deal 0.65s ease both;
+}
+
+@keyframes deal {
+  from { opacity: 0; transform: translateY(50px) rotateX(45deg) scale(0.86); }
+  to { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
+}
+
+.card {
+  aspect-ratio: 2.5 / 3.5;
+  border-radius: 18px;
+  position: relative;
+  overflow: hidden;
+  padding: 10px;
+  box-shadow: 0 22px 45px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(255,255,255,0.32);
+  background: var(--chrome);
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.55), transparent 55%);
+  transform: translateX(-130%);
+  animation: shine 3.2s ease-in-out infinite;
+}
+
+@keyframes shine {
+  50% { transform: translateX(140%); }
+  100% { transform: translateX(140%); }
+}
+
+.card-inner {
+  height: 100%;
+  border-radius: 13px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #111827, #252c41);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.logo-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  font-size: 0.58rem;
+  font-weight: 900;
+  position: relative;
+  z-index: 2;
+}
+
+.player-art {
+  flex: 1;
+  margin: 4px 12px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 3.2rem;
+  font-weight: 950;
+  text-shadow: 0 5px 20px rgba(0,0,0,0.55);
+  position: relative;
+  z-index: 2;
+}
+
+.nameplate {
+  position: relative;
+  z-index: 2;
+  padding: 9px;
+  background: rgba(0,0,0,0.55);
+  border-top: 1px solid rgba(255,255,255,0.18);
+}
+
+.nameplate strong {
+  display: block;
+  font-size: 0.86rem;
+  text-transform: uppercase;
+}
+
+.nameplate small {
+  color: #ccd2e7;
+}
+
+.serial {
+  position: absolute;
+  right: 9px;
+  bottom: 47px;
+  z-index: 4;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.62);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.badge {
+  position: absolute;
+  left: 9px;
+  bottom: 47px;
+  z-index: 4;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.14);
+  font-size: 0.62rem;
+  font-weight: 950;
+}
+
+.card.base .card-inner {
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.2), transparent 35%),
+    linear-gradient(150deg, #111827, #2d344b);
+}
+
+.card.future .card-inner {
+  background:
+    linear-gradient(90deg, rgba(80,240,255,0.22) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(80,240,255,0.18) 1px, transparent 1px),
+    linear-gradient(145deg, #071a2f, #053a5a);
+  background-size: 22px 22px, 22px 22px, auto;
+}
+
+.card.kings .card-inner {
+  background:
+    radial-gradient(circle at top, rgba(255,205,87,0.22), transparent 35%),
+    linear-gradient(145deg, #080808, #231b0c);
+}
+
+.card.deco {
+  background: linear-gradient(135deg, #ffffff, #d9e8ff, #0a4fb0);
+}
+
+.card.deco .card-inner {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.95), rgba(233,241,255,0.8)),
+    repeating-linear-gradient(45deg, rgba(0,63,160,0.25) 0 4px, transparent 4px 18px);
+  color: #07245f;
+}
+
+.card.floodlights {
+  background: linear-gradient(135deg, #07101e, #1256a8, #000);
+}
+
+.card.floodlights .card-inner {
+  background:
+    radial-gradient(circle at 35% 16%, rgba(165,225,255,0.85), transparent 16%),
+    radial-gradient(circle at 70% 16%, rgba(165,225,255,0.7), transparent 15%),
+    linear-gradient(180deg, #061427, #102f58 55%, #03060a);
+}
+
+.card.colour {
+  aspect-ratio: 3.5 / 2.5;
+  background: white;
+  color: #151515;
+}
+
+.card.colour .card-inner {
+  background:
+    radial-gradient(circle at center, #ffdf37 0 9%, transparent 10%),
+    conic-gradient(from 50deg, #ff3156, #ffdc42, #24f58a, #37d6ff, #8d57ff, #ff3156);
+  color: #101018;
+}
+
+.card.anime .card-inner {
+  background:
+    radial-gradient(circle at 30% 35%, rgba(255,70,210,0.5), transparent 22%),
+    linear-gradient(135deg, #12051f, #4a16a4, #ff3fae);
+}
+
+.card.kaleidoscope .card-inner {
+  background:
+    conic-gradient(from 40deg, #ff3b7b, #ffdb35, #49ff9e, #48e1ff, #8c55ff, #ff3b7b);
+}
+
+.card.auto .card-inner {
+  background: linear-gradient(145deg, #101725, #303a58);
+}
+
+.auto-strip {
+  margin: 0 12px 8px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.82);
+  color: #151515;
+  display: grid;
+  place-items: center;
+  font-family: cursive;
+  font-size: 1.2rem;
+  transform: rotate(-1deg);
+  position: relative;
+  z-index: 5;
+}
+
+.parallel-purple { background: linear-gradient(135deg, #e7dbff, #7b43ff, #2c124d); }
+.parallel-orange { background: linear-gradient(135deg, #ffe0ba, #ff892e, #5b1e00); }
+.parallel-black { background: linear-gradient(135deg, #555, #050505, #222); }
+.parallel-red { background: linear-gradient(135deg, #ffd0d7, #ff284b, #4a000b); }
+.parallel-superfractor { background: repeating-conic-gradient(#fff2a8 0 8deg, #d69d13 8deg 16deg, #7d4d00 16deg 24deg); }
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  background: rgba(255,255,255,0.08);
+  box-shadow: none;
+}
+
+.tab.active {
+  background: linear-gradient(135deg, #2ee8ff, #8f50ff);
+}
+
+.panel {
+  padding: 18px;
+}
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 12px;
+}
+
+.collection-item {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+}
+
+.collection-item strong {
+  display: block;
+}
+
+.collection-item small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th, .table td {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .hero { flex-direction: column; }
+  .stats { grid-template-columns: repeat(3, 1fr); min-width: 0; }
+  .cards { grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); }
+}
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Chrome UCL Concept</p>
+        <h1>Pack Opening Game</h1>
+        <p class="sub">V1 playable prototype — base, inserts, autos, SSPs, parallels, collection and duplicates.</p>
+      </div>
+      <div class="stats">
+        <div><span id="totalCards">0</span><small>Total Cards</small></div>
+        <div><span id="uniqueCards">0</span><small>Unique</small></div>
+        <div><span id="dupes">0</span><small>Duplicates</small></div>
+      </div>
+    </header>
+
+    <main>
+      <section class="controls">
+        <button id="openPackBtn">Open Pack</button>
+        <button id="openBoxBtn" class="secondary">Open Hobby Box</button>
+        <button id="resetBtn" class="ghost">Reset Collection</button>
+      </section>
+
+      <section class="pack-stage">
+        <div id="pack" class="pack">
+          <div class="pack-shine"></div>
+          <div class="pack-text">CHROME<br>UCL<br>PACK</div>
+        </div>
+      </section>
+
+      <section id="hitBanner" class="hit-banner hidden"></section>
+
+      <section id="cards" class="cards"></section>
+
+      <section class="tabs">
+        <button class="tab active" data-tab="collection">Collection</button>
+        <button class="tab" data-tab="checklist">Checklist</button>
+        <button class="tab" data-tab="odds">Odds</button>
+      </section>
+
+      <section id="collectionPanel" class="panel"></section>
+      <section id="checklistPanel" class="panel hidden"></section>
+      <section id="oddsPanel" class="panel hidden"></section>
+    </main>
+  </div>
+
+  <script>
+const basePlayers = [
+  ["BC-1", "Jude Bellingham", "Real Madrid"],
+  ["BC-2", "Vinícius Júnior", "Real Madrid"],
+  ["BC-3", "Kylian Mbappé", "Real Madrid"],
+  ["BC-9", "Lamine Yamal", "FC Barcelona"],
+  ["BC-17", "Erling Haaland", "Manchester City"],
+  ["BC-25", "Bukayo Saka", "Arsenal"],
+  ["BC-31", "Max Dowman", "Arsenal"],
+  ["BC-38", "Rio Ngumoha", "Liverpool"],
+  ["BC-43", "Estevão Willian", "Chelsea"],
+  ["BC-52", "Lennart Karl", "Bayern Munich"],
+  ["BC-78", "Lionel Messi", "Legend"],
+  ["BC-79", "Cristiano Ronaldo", "Legend"],
+  ["BC-81", "Pelé", "Legend"]
+];
+
+const inserts = {
+  future: [
+    ["FS-1", "Lamine Yamal", "FC Barcelona"],
+    ["FS-2", "Arda Güler", "Real Madrid"],
+    ["FS-3", "Max Dowman", "Arsenal"],
+    ["FS-4", "Rio Ngumoha", "Liverpool"],
+    ["FS-5", "Estevão Willian", "Chelsea"],
+    ["FS-6", "Lennart Karl", "Bayern Munich"]
+  ],
+  kings: [
+    ["KOE-1", "Kylian Mbappé", "Real Madrid"],
+    ["KOE-2", "Erling Haaland", "Manchester City"],
+    ["KOE-3", "Jude Bellingham", "Real Madrid"],
+    ["KOE-4", "Pelé", "Legend"],
+    ["KOE-5", "Cristiano Ronaldo", "Legend"]
+  ],
+  deco: [
+    ["DEC-1", "Pedri", "FC Barcelona"],
+    ["DEC-2", "Martin Ødegaard", "Arsenal"],
+    ["DEC-3", "Kaká", "Legend"],
+    ["DEC-4", "Andrés Iniesta", "Legend"]
+  ],
+  floodlights: [
+    ["FL-1", "Kylian Mbappé", "Real Madrid"],
+    ["FL-2", "Max Dowman", "Arsenal"],
+    ["FL-3", "Lennart Karl", "Bayern Munich"],
+    ["FL-4", "Rafael Leão", "AC Milan"]
+  ],
+  colour: [
+    ["CB-1", "Pelé", "Legend"],
+    ["CB-2", "Estevão Willian", "Chelsea"],
+    ["CB-3", "Jude Bellingham", "Real Madrid"],
+    ["CB-4", "Ronaldinho", "Legend"]
+  ],
+  anime: [
+    ["AN-1", "Lamine Yamal", "FC Barcelona"],
+    ["AN-2", "Rio Ngumoha", "Liverpool"],
+    ["AN-3", "Max Dowman", "Arsenal"],
+    ["AN-4", "Thierry Henry", "Legend"]
+  ],
+  kaleidoscope: [
+    ["KA-1", "Kylian Mbappé", "Real Madrid"],
+    ["KA-2", "Lennart Karl", "Bayern Munich"],
+    ["KA-3", "Lionel Messi", "Legend"],
+    ["KA-4", "Lamine Yamal", "FC Barcelona"]
+  ],
+  auto: [
+    ["CA-1", "Kylian Mbappé", "Real Madrid"],
+    ["CA-5", "Lamine Yamal", "FC Barcelona"],
+    ["CA-13", "Max Dowman", "Arsenal"],
+    ["CA-14", "Rio Ngumoha", "Liverpool"],
+    ["CA-15", "Estevão Willian", "Chelsea"],
+    ["CA-16", "Lennart Karl", "Bayern Munich"],
+    ["CA-24", "Pelé", "Legend"]
+  ]
+};
+
+const parallelTypes = [
+  { name: "Purple", denom: 50, className: "parallel-purple", chance: 0.48 },
+  { name: "Orange", denom: 25, className: "parallel-orange", chance: 0.25 },
+  { name: "Black", denom: 10, className: "parallel-black", chance: 0.15 },
+  { name: "Red", denom: 5, className: "parallel-red", chance: 0.09 },
+  { name: "Superfractor", denom: 1, className: "parallel-superfractor", chance: 0.03 }
+];
+
+const state = JSON.parse(localStorage.getItem("chromeUclCollectionV1") || '{"cards":[]}');
+
+function save() {
+  localStorage.setItem("chromeUclCollectionV1", JSON.stringify(state));
+  renderCollection();
+}
+
+function rand(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function weighted(items) {
+  const total = items.reduce((sum, item) => sum + item.chance, 0);
+  let roll = Math.random() * total;
+  for (const item of items) {
+    roll -= item.chance;
+    if (roll <= 0) return item;
+  }
+  return items[0];
+}
+
+function serial(denom) {
+  if (denom === 1) return "1/1";
+  return `${Math.floor(Math.random() * denom) + 1}/${denom}`;
+}
+
+function makeBase(numbered = false) {
+  const p = rand(basePlayers);
+  const card = {
+    id: p[0],
+    player: p[1],
+    team: p[2],
+    set: "Base Chrome",
+    type: "base",
+    className: "base",
+    rarity: "Base"
+  };
+  if (numbered) addParallel(card);
+  return card;
+}
+
+function addParallel(card) {
+  const par = weighted(parallelTypes);
+  card.parallel = par.name;
+  card.serial = serial(par.denom);
+  card.parallelClass = par.className;
+  card.rarity = `${par.name} /${par.denom}`;
+  return card;
+}
+
+function makeInsert(numbered = false) {
+  const pool = [
+    { key: "future", label: "Future Stars", chance: 0.45 },
+    { key: "kings", label: "Kings of Europe", chance: 0.30 },
+    { key: "deco", label: "Deco", chance: 0.25 }
+  ];
+  const chosen = weighted(pool);
+  const p = rand(inserts[chosen.key]);
+  const card = {
+    id: p[0],
+    player: p[1],
+    team: p[2],
+    set: chosen.label,
+    type: chosen.key,
+    className: chosen.key,
+    rarity: chosen.label
+  };
+  if (numbered) addParallel(card);
+  return card;
+}
+
+function makeSSP() {
+  const pool = [
+    { key: "floodlights", label: "Floodlights", chance: 0.38 },
+    { key: "colour", label: "Colour Blast", chance: 0.28 },
+    { key: "anime", label: "アニメ", chance: 0.22 },
+    { key: "kaleidoscope", label: "Kaleidoscope", chance: 0.12 }
+  ];
+  const chosen = weighted(pool);
+  const p = rand(inserts[chosen.key]);
+  const card = {
+    id: p[0],
+    player: p[1],
+    team: p[2],
+    set: chosen.label,
+    type: chosen.key,
+    className: chosen.key,
+    rarity: "SSP"
+  };
+
+  const parallelRoll = Math.random();
+  if (parallelRoll < 0.08) {
+    card.parallel = "Red";
+    card.serial = serial(5);
+    card.parallelClass = "parallel-red";
+    card.rarity = "SSP Red /5";
+  } else if (parallelRoll < 0.095) {
+    card.parallel = "Superfractor";
+    card.serial = "1/1";
+    card.parallelClass = "parallel-superfractor";
+    card.rarity = "SSP Superfractor 1/1";
+  }
+
+  return card;
+}
+
+function makeAuto(numbered = false) {
+  const p = rand(inserts.auto);
+  const card = {
+    id: p[0],
+    player: p[1],
+    team: p[2],
+    set: "Chrome Auto",
+    type: "auto",
+    className: "auto",
+    rarity: "Base Auto"
+  };
+  if (numbered) addParallel(card);
+  return card;
+}
+
+function makePack(forceBoxRules = false, packIndex = 0) {
+  const cards = [];
+  cards.push(makeBase());
+  cards.push(makeBase());
+  cards.push(makeBase());
+
+  const hitRoll = Math.random();
+
+  if (forceBoxRules && packIndex === 0) {
+    cards.push(makeAuto(false));
+    cards.push(makeBase(true));
+  } else if (forceBoxRules && [2, 5, 8].includes(packIndex)) {
+    cards.push(makeInsert());
+    cards.push(Math.random() < 0.5 ? makeBase(true) : makeInsert(true));
+  } else if (forceBoxRules && packIndex === 9 && Math.random() < 0.75) {
+    cards.push(makeSSP());
+    cards.push(makeInsert());
+  } else if (hitRoll < 0.05) {
+    cards.push(makeSSP());
+    cards.push(makeInsert());
+  } else if (hitRoll < 0.13) {
+    cards.push(makeAuto(Math.random() < 0.18));
+    cards.push(makeBase());
+  } else if (hitRoll < 0.42) {
+    cards.push(makeInsert());
+    cards.push(Math.random() < 0.25 ? makeBase(true) : makeBase());
+  } else if (hitRoll < 0.62) {
+    cards.push(makeBase(true));
+    cards.push(makeInsert());
+  } else {
+    cards.push(makeBase());
+    cards.push(makeInsert());
+  }
+  return cards;
+}
+
+function cardKey(card) {
+  return [card.id, card.set, card.parallel || "Base", card.serial || ""].join("|");
+}
+
+function addToCollection(cards) {
+  cards.forEach(card => {
+    const key = cardKey(card);
+    const existing = state.cards.find(c => c.key === key);
+    if (existing) existing.count += 1;
+    else state.cards.push({ key, count: 1, ...card });
+  });
+  save();
+}
+
+function renderCards(cards) {
+  const container = document.getElementById("cards");
+  container.innerHTML = "";
+  cards.forEach((card, i) => {
+    const wrap = document.createElement("div");
+    wrap.className = "card-wrap";
+    wrap.style.animationDelay = `${i * 0.12}s`;
+    wrap.innerHTML = cardHTML(card);
+    container.appendChild(wrap);
+  });
+
+  const biggest = cards.find(c => c.rarity.includes("1/1")) ||
+    cards.find(c => c.rarity.includes("SSP")) ||
+    cards.find(c => c.rarity.includes("Auto")) ||
+    cards.find(c => c.serial);
+
+  const banner = document.getElementById("hitBanner");
+  if (biggest) {
+    banner.classList.remove("hidden");
+    banner.textContent = biggest.rarity.includes("1/1")
+      ? `MONSTER HIT: ${biggest.player} ${biggest.set} ${biggest.rarity}`
+      : `Hit Pulled: ${biggest.player} ${biggest.set} ${biggest.rarity}`;
+  } else {
+    banner.classList.add("hidden");
+  }
+}
+
+function initials(name) {
+  return name.split(" ").map(x => x[0]).join("").slice(0, 3).toUpperCase();
+}
+
+function cardHTML(card) {
+  const parallelClass = card.parallelClass || "";
+  const title = card.set;
+  return `
+    <div class="card ${card.className} ${parallelClass}">
+      <div class="card-inner">
+        <div class="logo-row">
+          <span>UCL</span>
+          <span>TOPPS CHROME</span>
+        </div>
+        <div class="badge">${card.id}</div>
+        ${card.serial ? `<div class="serial">${card.serial}</div>` : ""}
+        <div class="player-art">${initials(card.player)}</div>
+        ${card.type === "auto" ? `<div class="auto-strip">${card.player.split(" ")[0]}</div>` : ""}
+        <div class="nameplate">
+          <strong>${card.player}</strong>
+          <small>${card.team} · ${title}${card.parallel ? ` · ${card.parallel}` : ""}</small>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function openPack() {
+  const pack = document.getElementById("pack");
+  pack.classList.remove("rip");
+  void pack.offsetWidth;
+  pack.classList.add("rip");
+  const cards = makePack();
+  setTimeout(() => {
+    pack.classList.remove("rip");
+    renderCards(cards);
+    addToCollection(cards);
+  }, 700);
+}
+
+function openBox() {
+  const all = [];
+  for (let i = 0; i < 10; i++) all.push(...makePack(true, i));
+  renderCards(all);
+  addToCollection(all);
+}
+
+function renderCollection() {
+  const total = state.cards.reduce((sum, c) => sum + c.count, 0);
+  const unique = state.cards.length;
+  const dupes = total - unique;
+
+  document.getElementById("totalCards").textContent = total;
+  document.getElementById("uniqueCards").textContent = unique;
+  document.getElementById("dupes").textContent = dupes;
+
+  const panel = document.getElementById("collectionPanel");
+  if (!state.cards.length) {
+    panel.innerHTML = "<p>Your collection is empty. Open a pack to start.</p>";
+    return;
+  }
+
+  const sorted = [...state.cards].sort((a, b) => a.id.localeCompare(b.id));
+  panel.innerHTML = `<div class="collection-grid">${sorted.map(c => `
+    <div class="collection-item">
+      <strong>${c.player}</strong>
+      <small>${c.id} · ${c.set}</small>
+      <small>${c.parallel ? `${c.parallel} ${c.serial || ""}` : c.rarity}</small>
+      <small>Owned: ${c.count}</small>
+    </div>
+  `).join("")}</div>`;
+}
+
+function renderChecklist() {
+  const panel = document.getElementById("checklistPanel");
+  const rows = [
+    ...basePlayers.map(p => [p[0], p[1], p[2], "Base"]),
+    ...Object.entries(inserts).flatMap(([key, list]) => list.map(p => [p[0], p[1], p[2], key]))
+  ];
+  panel.innerHTML = `
+    <table class="table">
+      <thead><tr><th>No.</th><th>Player</th><th>Team</th><th>Set</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("")}</tbody>
+    </table>
+  `;
+}
+
+function renderOdds() {
+  document.getElementById("oddsPanel").innerHTML = `
+    <table class="table">
+      <tr><th>Feature</th><th>V1 Behaviour</th></tr>
+      <tr><td>Pack Size</td><td>5 cards</td></tr>
+      <tr><td>Hobby Box</td><td>10 packs, one guaranteed auto, three numbered cards, SSP chance</td></tr>
+      <tr><td>Standard parallels</td><td>Purple /50, Orange /25, Black /10, Red /5, Superfractor 1/1</td></tr>
+      <tr><td>SSP parallels</td><td>Base SSP, Red /5, Superfractor 1/1 only</td></tr>
+      <tr><td>Base Auto</td><td>No numbering unless parallel</td></tr>
+      <tr><td>Serial Numbers</td><td>Randomized when pulled</td></tr>
+    </table>
+  `;
+}
+
+document.getElementById("openPackBtn").addEventListener("click", openPack);
+document.getElementById("openBoxBtn").addEventListener("click", openBox);
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (confirm("Reset your collection?")) {
+    state.cards = [];
+    save();
+    document.getElementById("cards").innerHTML = "";
+    document.getElementById("hitBanner").classList.add("hidden");
+  }
+});
+
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
+    document.getElementById(`${btn.dataset.tab}Panel`).classList.remove("hidden");
+  });
+});
+
+renderCollection();
+renderChecklist();
+renderOdds();
+
+</script>
+</body>
+</html>
