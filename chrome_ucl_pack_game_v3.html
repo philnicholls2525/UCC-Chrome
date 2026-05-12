@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chrome UCL V3</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#050711; --panel:rgba(255,255,255,.07); --line:rgba(255,255,255,.14);
+  --text:#f7f8ff; --muted:#aeb7cf; --cyan:#48eaff; --purple:#875cff;
+}
+body{
+  margin:0; font-family:Arial,Helvetica,sans-serif; color:var(--text);
+  background:radial-gradient(circle at 20% 0%,rgba(80,110,255,.28),transparent 26%),
+             radial-gradient(circle at 85% 10%,rgba(255,60,210,.18),transparent 28%),
+             linear-gradient(135deg,#03040a,#0b1020 60%,#03040a);
+  min-height:100vh;
+}
+.app{width:min(1320px,96vw);margin:auto;padding:18px 0 60px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+h1{margin:0;font-size:clamp(2.4rem,7vw,5rem);line-height:.9;text-transform:uppercase;
+  background:linear-gradient(90deg,#fff,#76f1ff,#b889ff,#fff);-webkit-background-clip:text;color:transparent}
+.sub{color:var(--muted);margin:8px 0 0}
+.wallet{display:flex;gap:10px;flex-wrap:wrap}
+.pill{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px 16px;font-weight:900}
+.layout{display:grid;grid-template-columns:340px 1fr;gap:18px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:26px;padding:16px;backdrop-filter:blur(14px)}
+h2{margin:0 0 14px}
+.product{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:14px;margin-bottom:12px}
+.product h3{margin:0 0 6px}
+.product p{margin:0 0 12px;color:var(--muted);font-size:.92rem;line-height:1.35}
+button{border:0;border-radius:14px;padding:12px 16px;font-weight:900;cursor:pointer;color:white;
+  background:linear-gradient(135deg,#36eeff,#855cff,#ff4bd0);box-shadow:0 12px 28px rgba(90,75,255,.22)}
+button.secondary{background:rgba(255,255,255,.09);box-shadow:none}
+button:disabled{opacity:.45;cursor:not-allowed}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.tab{background:rgba(255,255,255,.08);box-shadow:none}
+.tab.active{background:linear-gradient(135deg,#36eeff,#855cff)}
+.stage{height:650px;display:grid;place-items:center;position:relative;overflow:hidden}
+.pack{
+  width:205px;height:305px;border-radius:25px;display:grid;place-items:center;text-align:center;
+  font-size:1.65rem;font-weight:950;cursor:pointer;position:absolute;letter-spacing:.04em;
+  background:repeating-linear-gradient(45deg,#151b31 0 18px,#222a4e 18px 36px);
+  border:2px solid rgba(255,255,255,.35);box-shadow:0 28px 85px rgba(0,0,0,.6),0 0 50px rgba(132,88,255,.35);
+  overflow:hidden;transition:.45s ease
+}
+.pack:before{content:"";position:absolute;inset:-50%;background:conic-gradient(#55eeff,#8e5cff,#ff4bd0,#ffe45c,#55eeff);opacity:.22;animation:spin 5s linear infinite}
+.pack span{position:relative;text-shadow:0 4px 0 #000,0 0 18px #fff}
+.pack.hidden{opacity:0;pointer-events:none;transform:scale(.5) rotate(18deg)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stack{display:none;position:relative;width:280px;height:410px}
+.card-back,.card{position:absolute;width:100%;height:100%;border-radius:24px}
+.card-back{background:linear-gradient(135deg,#11182b,#2b365f);border:2px solid rgba(255,255,255,.2);box-shadow:0 18px 46px rgba(0,0,0,.55)}
+.card-back:nth-child(1){top:0;left:0}.card-back:nth-child(2){top:7px;left:5px}.card-back:nth-child(3){top:14px;left:10px}.card-back:nth-child(4){top:21px;left:15px}.card-back:nth-child(5){top:28px;left:20px}
+.card{display:none;overflow:hidden;box-shadow:0 28px 65px rgba(0,0,0,.65);animation:flip .38s ease}
+.card.active{display:block}
+@keyframes flip{from{transform:rotateY(90deg) scale(.92);opacity:.4}to{transform:rotateY(0) scale(1);opacity:1}}
+.card-inner{position:absolute;inset:0;padding:10px;display:flex;flex-direction:column;justify-content:space-between}
+.top{display:flex;justify-content:space-between;font-size:.68rem;font-weight:950;position:relative;z-index:2}
+.player{flex:1;display:flex;align-items:center;justify-content:center;font-size:4.6rem;font-weight:950;text-shadow:0 5px 18px rgba(0,0,0,.55);position:relative;z-index:2}
+.bottom{background:rgba(0,0,0,.58);padding:12px;border-radius:15px;position:relative;z-index:2}
+.bottom strong{display:block;text-transform:uppercase;letter-spacing:.04em}
+.bottom small{color:#d5d9ea}
+.serial{position:absolute;right:12px;bottom:88px;background:rgba(0,0,0,.65);padding:5px 8px;border-radius:10px;font-size:.78rem;font-weight:950;z-index:5}
+.valueRow{position:absolute;left:50%;bottom:-62px;transform:translateX(-50%);width:260px;text-align:center;font-size:1.05rem;font-weight:950;color:#fff}
+.valueRow span{display:inline-block;background:rgba(255,255,255,.09);border:1px solid var(--line);padding:10px 14px;border-radius:16px}
+.hit-cover{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#020202,#151515);font-size:2rem;font-weight:950;letter-spacing:.1em;z-index:50;cursor:pointer;text-transform:uppercase}
+.hit-cover.show{display:flex;animation:pulse 1.15s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 12px #fff}50%{box-shadow:0 0 46px #8d6cff}}
+.note{position:absolute;bottom:14px;color:#d6dcef;font-size:.9rem}
+.base{background:linear-gradient(135deg,#d8dce8,#6c7891,#fff)}
+.future{background:linear-gradient(135deg,#00f2ff,#005bff,#061d2e)}
+.kings{background:linear-gradient(135deg,#e0c15d,#151515,#000)}
+.deco{background:linear-gradient(135deg,#fff,#d5e3ff,#0040aa)}
+.floodlights{background:linear-gradient(135deg,#04111f,#1358af,#020409)}
+.colour{background:conic-gradient(#ff3768,#ffe23d,#32ffab,#45dbff,#8f5cff,#ff3768)}
+.anime{background:linear-gradient(135deg,#250038,#7f26ff,#ff4dbc)}
+.kaleidoscope{background:conic-gradient(#ff3079,#ffe145,#55ff95,#4fe0ff,#8f5cff,#ff3079)}
+.auto{background:linear-gradient(135deg,#e1e7f7,#4d5875,#fff)}
+.parallel-purple{outline:4px solid #8c5cff}.parallel-orange{outline:4px solid #ff8a2a}.parallel-black{outline:4px solid #111}.parallel-red{outline:4px solid #ff274c}.parallel-super{outline:5px solid gold}
+.binderTop{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.search{flex:1;min-width:200px;background:rgba(255,255,255,.08);border:1px solid var(--line);color:#fff;border-radius:14px;padding:12px}
+.binder{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:620px;margin:auto}
+.slot{aspect-ratio:2.5/3.5;border-radius:16px;position:relative;overflow:hidden;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)}
+.slot.empty{display:grid;place-items:center;color:#69708a;background:rgba(255,255,255,.025);font-weight:900}
+.miniCard{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:950}
+.ownedBadge{position:absolute;right:6px;bottom:6px;background:#000;padding:4px 7px;border-radius:9px;font-size:.75rem;font-weight:900;z-index:2}
+.cardMeta{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.65);padding:4px 6px;border-radius:8px;font-size:.62rem;font-weight:900;z-index:2}
+.actions{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.stat{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px}
+.stat strong{display:block;font-size:1.7rem}
+.hidden{display:none!important}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}.stage{height:610px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <h1>Chrome UCL</h1>
+      <p class="sub">V3 economy, store, reveal stack and binder prototype.</p>
+    </div>
+    <div class="wallet">
+      <div class="pill">Coins: <span id="coins">5,000</span></div>
+      <div class="pill">Collection Value: <span id="collectionValue">0</span></div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="panel">
+      <h2>Store</h2>
+      <div id="store"></div>
+      <div class="stats">
+        <div class="stat"><strong id="totalCards">0</strong>Total Cards</div>
+        <div class="stat"><strong id="uniqueCards">0</strong>Unique</div>
+      </div>
+      <div class="actions">
+        <button class="secondary" onclick="resetGame()">Reset</button>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="opening">Pack Opening</button>
+        <button class="tab" data-tab="binder">Binder</button>
+      </div>
+
+      <section id="openingPanel">
+        <div class="stage">
+          <div class="pack hidden" id="pack"><span>CHROME<br>UCL<br>PACK</span></div>
+          <div class="stack" id="stack">
+            <div class="card-back"></div><div class="card-back"></div><div class="card-back"></div><div class="card-back"></div><div class="card-back"></div>
+            <div class="hit-cover" id="hitCover">Hit</div>
+            <div class="note" id="note">Buy a product to start.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="binderPanel" class="hidden">
+        <div class="binderTop">
+          <input class="search" id="search" placeholder="Search binder..." oninput="renderBinder()" />
+          <button class="secondary" onclick="sellDuplicates()">Sell Duplicates</button>
+        </div>
+        <div class="binder" id="binder"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const products = {
+  standard:{label:"Standard Pack", price:500, packs:1, desc:"5 cards · cheap daily rip · low hit odds"},
+  blaster:{label:"Blaster Box", price:4500, packs:8, desc:"8 packs · better inserts · guaranteed numbered card"},
+  hobbypack:{label:"Hobby Pack", price:1200, packs:1, desc:"5 cards · improved odds · autos possible"},
+  hobbybox:{label:"Hobby Box", price:10000, packs:10, desc:"10 packs · 1 auto · 3 numbered · SSP chance"}
+};
+
+const pool = [
+  {id:"BC-1", set:"Base", cls:"base", player:"Jude Bellingham", team:"Real Madrid", value:40, weight:18},
+  {id:"BC-9", set:"Base", cls:"base", player:"Lamine Yamal", team:"Barcelona", value:40, weight:18},
+  {id:"BC-31", set:"Base", cls:"base", player:"Max Dowman", team:"Arsenal", value:40, weight:18},
+  {id:"BC-38", set:"Base", cls:"base", player:"Rio Ngumoha", team:"Liverpool", value:40, weight:18},
+  {id:"FS-1", set:"Future Stars", cls:"future", player:"Lamine Yamal", team:"Barcelona", value:90, weight:8},
+  {id:"FS-4", set:"Future Stars", cls:"future", player:"Rio Ngumoha", team:"Liverpool", value:90, weight:8},
+  {id:"KOE-1", set:"Kings of Europe", cls:"kings", player:"Kylian Mbappé", team:"Real Madrid", value:120, weight:5},
+  {id:"DEC-1", set:"Deco", cls:"deco", player:"Pedri", team:"Barcelona", value:300, weight:3},
+  {id:"FL-2", set:"Floodlights", cls:"floodlights", player:"Max Dowman", team:"Arsenal", value:7000, weight:.45, ssp:true},
+  {id:"CB-1", set:"Colour Blast", cls:"colour", player:"Pelé", team:"Legend", value:12000, weight:.3, ssp:true},
+  {id:"AN-2", set:"アニメ", cls:"anime", player:"Rio Ngumoha", team:"Liverpool", value:15000, weight:.25, ssp:true},
+  {id:"KA-2", set:"Kaleidoscope", cls:"kaleidoscope", player:"Lennart Karl", team:"Bayern Munich", value:20000, weight:.18, ssp:true},
+  {id:"CA-16", set:"Chrome Auto", cls:"auto", player:"Lennart Karl", team:"Bayern Munich", value:3000, weight:.7, auto:true}
+];
+
+let state = JSON.parse(localStorage.getItem("chromeUclV3State") || '{"coins":5000,"cards":[]}');
+let queue = [];
+let currentPack = [];
+let revealIndex = 0;
+
+function save(){ localStorage.setItem("chromeUclV3State", JSON.stringify(state)); updateUI(); }
+
+function fmt(n){ return Math.round(n).toLocaleString(); }
+function initials(name){ return name.split(" ").map(x=>x[0]).join("").slice(0,3).toUpperCase(); }
+function weighted(list){
+  let total=list.reduce((s,x)=>s+x.weight,0), r=Math.random()*total;
+  for(const item of list){ r-=item.weight; if(r<=0) return item; }
+  return list[0];
+}
+function serial(denom){ return denom===1 ? "1/1" : `${Math.ceil(Math.random()*denom)}/${denom}`; }
+
+function addParallel(card, forced=false){
+  const roll = Math.random();
+  let p = null;
+  if(forced || roll < .055) p = {name:"Purple /50", cls:"parallel-purple", mult:4, denom:50};
+  if(roll < .025) p = {name:"Orange /25", cls:"parallel-orange", mult:7, denom:25};
+  if(roll < .010) p = {name:"Black /10", cls:"parallel-black", mult:15, denom:10};
+  if(roll < .004) p = {name:"Red /5", cls:"parallel-red", mult:40, denom:5};
+  if(roll < .0008) p = {name:"Superfractor 1/1", cls:"parallel-super", mult:250, denom:1};
+  if(p){
+    card.parallel = p.name; card.parallelClass = p.cls; card.serial = serial(p.denom); card.value *= p.mult;
+  }
+  return card;
+}
+
+function makeCard(boostHits=false, guaranteedNumbered=false, guaranteedAuto=false){
+  let base = guaranteedAuto ? pool.find(x=>x.auto) : weighted(pool.map(x=>({...x, weight: boostHits ? x.weight*1.25 : x.weight})));
+  let card = {...base, uid: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()+Math.random())};
+  if(!card.ssp) addParallel(card, guaranteedNumbered);
+  else {
+    const r=Math.random();
+    if(r<.08){ card.parallel="Red /5"; card.parallelClass="parallel-red"; card.serial=serial(5); card.value*=40; }
+    if(r<.012){ card.parallel="Superfractor 1/1"; card.parallelClass="parallel-super"; card.serial="1/1"; card.value*=250; }
+  }
+  return card;
+}
+
+function generatePack(productType, packNo=0){
+  const cards=[];
+  const boost = productType==="hobbypack" || productType==="hobbybox";
+  const numbered = productType==="blaster" && packNo===0;
+  const auto = productType==="hobbybox" && packNo===0;
+  for(let i=0;i<5;i++) cards.push(makeCard(boost, numbered && i===4, auto && i===4));
+  return cards;
+}
+
+function buyProduct(type){
+  const p = products[type];
+  if(state.coins < p.price){ alert("Not enough coins"); return; }
+  state.coins -= p.price;
+  queue = [];
+  for(let i=0;i<p.packs;i++) queue.push(generatePack(type, i));
+  save();
+  showOpening();
+  startNextPack();
+}
+
+function showOpening(){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  document.querySelector('[data-tab="opening"]').classList.add("active");
+  openingPanel.classList.remove("hidden"); binderPanel.classList.add("hidden");
+}
+
+function startNextPack(){
+  currentPack = queue.shift() || [];
+  revealIndex = 0;
+  document.getElementById("pack").classList.remove("hidden");
+  document.getElementById("stack").style.display="none";
+  document.querySelectorAll(".card,.valueRow").forEach(e=>e.remove());
+  document.getElementById("note").textContent = queue.length ? `Tap pack to open. ${queue.length+1} packs remaining.` : "Tap pack to open.";
+}
+
+document.getElementById("pack").onclick = () => {
+  document.getElementById("pack").classList.add("hidden");
+  document.getElementById("stack").style.display="block";
+  revealNext();
+};
+
+document.getElementById("stack").onclick = (e) => {
+  if(e.target.id==="hitCover") return;
+  if(revealIndex < currentPack.length) revealNext();
+  else if(queue.length) startNextPack();
+  else document.getElementById("note").textContent = "Opening complete. Buy another product or view binder.";
+};
+
+document.getElementById("hitCover").onclick = () => document.getElementById("hitCover").classList.remove("show");
+
+function revealNext(){
+  document.querySelectorAll(".card,.valueRow").forEach(e=>e.remove());
+  const c = currentPack[revealIndex];
+  if(!c) return;
+  const card = document.createElement("div");
+  card.className = `card active ${c.cls} ${c.parallelClass||""}`;
+  card.innerHTML = `<div class="card-inner">
+    <div class="top"><span>UCL</span><span>TOPPS CHROME</span></div>
+    ${c.serial ? `<div class="serial">${c.serial}</div>` : ""}
+    <div class="player">${initials(c.player)}</div>
+    <div class="bottom"><strong>${c.player}</strong><small>${c.team} · ${c.set}</small></div>
+  </div>`;
+  document.getElementById("stack").appendChild(card);
+  const val = document.createElement("div");
+  val.className = "valueRow";
+  val.innerHTML = `<span>Value: ${fmt(c.value)} coins</span>`;
+  document.getElementById("stack").appendChild(val);
+  if(c.ssp || c.auto || c.parallel) document.getElementById("hitCover").classList.add("show");
+  state.cards.push(c);
+  revealIndex++;
+  save();
+}
+
+function renderStore(){
+  document.getElementById("store").innerHTML = Object.entries(products).map(([key,p])=>`
+    <div class="product">
+      <h3>${p.label}</h3><p>${p.desc}</p>
+      <button onclick="buyProduct('${key}')">${fmt(p.price)} Coins</button>
+    </div>
+  `).join("");
+}
+
+function updateUI(){
+  document.getElementById("coins").textContent = fmt(state.coins);
+  document.getElementById("collectionValue").textContent = fmt(state.cards.reduce((s,c)=>s+c.value,0));
+  document.getElementById("totalCards").textContent = state.cards.length;
+  document.getElementById("uniqueCards").textContent = new Set(state.cards.map(c=>c.id+"|"+(c.parallel||"base"))).size;
+  renderBinder();
+}
+
+function renderBinder(){
+  const q = (document.getElementById("search")?.value || "").toLowerCase();
+  const grouped = {};
+  for(const c of state.cards){
+    const k = c.id+"|"+(c.parallel||"base")+"|"+(c.serial||"");
+    if(!grouped[k]) grouped[k] = {...c, count:0};
+    grouped[k].count++;
+  }
+  let items = Object.values(grouped).filter(c => (c.player+" "+c.team+" "+c.set).toLowerCase().includes(q));
+  items = items.sort((a,b)=>a.id.localeCompare(b.id)).slice(0,18);
+  const binder = document.getElementById("binder");
+  binder.innerHTML = items.map(c=>`
+    <div class="slot">
+      <div class="miniCard ${c.cls} ${c.parallelClass||""}">${initials(c.player)}</div>
+      <div class="cardMeta">${c.id}</div>
+      <div class="ownedBadge">x${c.count}</div>
+    </div>
+  `).join("");
+  for(let i=items.length;i<18;i++) binder.innerHTML += `<div class="slot empty">EMPTY</div>`;
+}
+
+function sellDuplicates(){
+  const seen = new Set(); let keep = []; let earned = 0;
+  for(const c of state.cards){
+    const k = c.id+"|"+(c.parallel||"base")+"|"+(c.serial||"");
+    if(seen.has(k)) earned += Math.floor(c.value*.75);
+    else { seen.add(k); keep.push(c); }
+  }
+  state.cards = keep; state.coins += earned; save();
+  alert(`Sold duplicates for ${fmt(earned)} coins`);
+}
+
+function resetGame(){
+  if(confirm("Reset coins and collection?")){
+    state={coins:5000,cards:[]}; queue=[]; currentPack=[]; revealIndex=0; save();
+    document.getElementById("pack").classList.add("hidden");
+    document.getElementById("stack").style.display="none";
+    document.querySelectorAll(".card,.valueRow").forEach(e=>e.remove());
+  }
+}
+
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    openingPanel.classList.toggle("hidden", btn.dataset.tab!=="opening");
+    binderPanel.classList.toggle("hidden", btn.dataset.tab!=="binder");
+    renderBinder();
+  };
+});
+
+renderStore(); updateUI();
+</script>
+</body>
+</html>
