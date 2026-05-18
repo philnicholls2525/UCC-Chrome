@@ -1,0 +1,7211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Chrome UCL V8 Dashboard</title>
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:Arial,Helvetica,sans-serif;
+color:white;
+background:
+radial-gradient(circle at 20% 0%,rgba(67,120,255,.35),transparent 28%),
+radial-gradient(circle at 85% 5%,rgba(255,0,200,.22),transparent 28%),
+linear-gradient(135deg,#03050b,#0b1120 60%,#03050b);
+min-height:100vh;
+}
+.app{width:min(1300px,96vw);margin:auto;padding:18px 0 60px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(2.6rem,8vw,5rem);line-height:.9;background:linear-gradient(90deg,#fff,#68eeff,#b98cff,#fff);-webkit-background-clip:text;color:transparent;text-transform:uppercase}
+.wallet{display:flex;gap:10px;flex-wrap:wrap}
+.pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);border-radius:18px;padding:12px 15px;font-weight:900}
+.page{display:none}
+.page.active{display:block}
+.dashboardGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+.tile{min-height:190px;border-radius:28px;padding:20px;position:relative;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.15);background:linear-gradient(135deg,rgba(80,0,160,.75),rgba(0,110,255,.22));box-shadow:0 24px 70px rgba(0,0,0,.35)}
+.tile:after{content:"";position:absolute;right:-60px;bottom:-60px;width:190px;height:190px;border-radius:50%;background:radial-gradient(circle,rgba(255,0,210,.45),transparent 70%)}
+.tile h2{position:absolute;bottom:18px;left:20px;margin:0;font-size:2rem}
+.tile p{max-width:74%;color:#d6dcef;line-height:1.35}
+.tileTag{position:absolute;top:16px;right:16px;background:rgba(0,0,0,.45);border-radius:12px;padding:7px 10px;font-size:.8rem;font-weight:900}
+.panel{background:rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.12);border-radius:28px;padding:18px;backdrop-filter:blur(14px)}
+.layout{display:grid;grid-template-columns:330px 1fr;gap:18px}
+.product{padding:15px;border-radius:18px;margin-bottom:13px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.055)}
+.product.hobby{background:linear-gradient(135deg,rgba(54,238,255,.12),rgba(134,92,255,.18))}
+.product.box{background:linear-gradient(135deg,rgba(255,210,75,.12),rgba(255,75,205,.14))}
+button{border:0;border-radius:14px;padding:12px 16px;font-weight:900;cursor:pointer;color:white;background:linear-gradient(135deg,#36eeff,#865cff,#ff4bd0)}
+button.secondary{background:rgba(255,255,255,.09)}
+.stage{height:690px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.pack{width:210px;height:310px;border-radius:26px;position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;font-size:1.75rem;font-weight:900;letter-spacing:.05em;cursor:pointer;overflow:hidden;border:2px solid rgba(255,255,255,.35);box-shadow:0 30px 90px rgba(0,0,0,.6);transition:.4s ease;background:repeating-linear-gradient(45deg,#151c31 0 18px,#242d52 18px 36px)}
+.pack.hobby{background:linear-gradient(135deg,#0d1d33,#5a36ff,#11d9ff)}
+.pack.box{background:linear-gradient(135deg,#251300,#ffcd4f,#ff4bcf)}
+.pack.hidden{opacity:0;pointer-events:none;transform:scale(.5) rotate(15deg)}
+.stack{position:relative;width:290px;height:420px;display:none}
+.card-back,.card{position:absolute;width:100%;height:100%;border-radius:24px}
+.card-back{background:linear-gradient(135deg,#101827,#2d3c67);border:2px solid rgba(255,255,255,.15);box-shadow:0 20px 45px rgba(0,0,0,.5)}
+.card-back:after{content:"TOPPS CHROME";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900;opacity:.14}
+.card-back:nth-child(1){top:0}.card-back:nth-child(2){top:8px}.card-back:nth-child(3){top:16px}.card-back:nth-child(4){top:24px}.card-back:nth-child(5){top:32px}
+.card{display:none;overflow:hidden;animation:flip .35s ease;box-shadow:0 30px 65px rgba(0,0,0,.65)}
+.card.active{display:block}
+@keyframes flip{from{transform:rotateY(90deg) scale(.92)}to{transform:rotateY(0) scale(1)}}
+.card-inner{position:absolute;inset:0;padding:10px;display:flex;flex-direction:column;justify-content:space-between}
+.toprow{display:flex;justify-content:space-between;font-size:.7rem;font-weight:900}
+.player{flex:1;display:flex;align-items:center;justify-content:center;font-size:4.6rem;font-weight:900;text-shadow:0 4px 15px rgba(0,0,0,.5)}
+.bottom{background:rgba(0,0,0,.55);padding:12px;border-radius:14px}
+.value{position:absolute;left:50%;transform:translateX(-50%);bottom:-60px;font-weight:900}
+.value span{background:rgba(255,255,255,.08);padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12)}
+.hit{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:2rem;font-weight:900;letter-spacing:.1em;background:linear-gradient(135deg,#030303,#171717);z-index:30;cursor:pointer}
+.hit.show{display:flex;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 10px white}50%{box-shadow:0 0 40px #8b67ff}}
+.note{position:absolute;bottom:18px;font-size:.9rem;color:#d0d8ef}
+.summary{position:absolute;inset:14px;overflow:auto;display:none}
+.summary.show{display:block}
+.summaryGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:12px}
+.sumBox{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);padding:10px;border-radius:14px;font-size:.85rem}
+.sumBox strong{display:block;font-size:1.15rem}
+.pullGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:10px}
+.pull{text-align:center}
+.pullCard{aspect-ratio:2.5/3.5;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1rem;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.14)}
+.pullValue{margin-top:5px;font-size:.68rem;font-weight:900;white-space:nowrap}
+.binderGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:650px;margin:auto}
+.slot{aspect-ratio:2.5/3.5;border-radius:16px;position:relative;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.empty{display:flex;align-items:center;justify-content:center;color:#667;font-weight:900;text-align:center}
+.mini{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:900}
+.owned{position:absolute;right:6px;bottom:6px;background:#000;padding:4px 6px;border-radius:8px;font-size:.7rem;font-weight:900}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.toolbar input,.toolbar select{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px;color:white}
+.toolbar input{flex:1;min-width:220px}
+.statsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px}
+.stat strong{display:block;font-size:1.3rem}
+.base{background:linear-gradient(135deg,#d7dce8,#6d7992,#fff)}.future{background:linear-gradient(135deg,#00f1ff,#005bff,#061c2e)}.kings{background:linear-gradient(135deg,#dfc25d,#121212,#000)}.deco{background:linear-gradient(135deg,#fff,#d5e3ff,#0040aa)}.floodlights{background:linear-gradient(135deg,#05111f,#1358af,#020409)}.colour{background:conic-gradient(#ff3768,#ffe23d,#32ffab,#45dbff,#8f5cff,#ff3768)}.anime{background:linear-gradient(135deg,#250038,#7f26ff,#ff4dbc)}.kaleidoscope{background:conic-gradient(#ff3079,#ffe145,#55ff95,#4fe0ff,#8f5cff,#ff3079)}.auto{background:linear-gradient(135deg,#e1e7f7,#4d5875,#fff)}
+.placeholder{padding:28px;text-align:center;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.16);border-radius:24px}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}}
+
+/* V8.3 MADFUT-inspired mobile hub */
+.gameTopBar{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-bottom:16px;
+  background:rgba(0,0,0,.34);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;
+  padding:8px;
+  box-shadow:0 12px 30px rgba(0,0,0,.28);
+}
+.topStat{
+  background:linear-gradient(135deg,rgba(255,255,255,.11),rgba(255,255,255,.04));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;
+  padding:8px 9px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  font-size:.86rem;
+}
+.topIcon{
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  display:inline-grid;
+  place-items:center;
+  background:linear-gradient(135deg,#ffe45c,#8d5cff);
+  font-size:.72rem;
+  color:#111;
+}
+.madHero{
+  min-height:190px;
+  border-radius:28px;
+  padding:26px;
+  margin-bottom:18px;
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.16);
+  background:
+    radial-gradient(circle at 75% 25%,rgba(255,255,255,.22),transparent 18%),
+    linear-gradient(135deg,rgba(90,0,160,.72),rgba(0,100,255,.28)),
+    rgba(255,255,255,.06);
+  box-shadow:0 24px 70px rgba(0,0,0,.35);
+}
+.madHero h2{
+  font-size:3.2rem;
+  margin:0;
+  font-style:italic;
+}
+.madHero p{
+  max-width:65%;
+  color:#d9e0f3;
+}
+.madHero:after{
+  content:"";
+  position:absolute;
+  right:10px;
+  bottom:-26px;
+  width:190px;
+  height:190px;
+  border-radius:32px;
+  background:conic-gradient(#ff3c78,#ffe55c,#36ffc0,#4fdcff,#8b5cff,#ff3c78);
+  opacity:.34;
+  transform:rotate(-12deg);
+}
+.madGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.madTile{
+  min-height:165px;
+  border-radius:26px;
+  padding:18px;
+  position:relative;
+  overflow:hidden;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,.15);
+  background:
+    linear-gradient(135deg,rgba(80,0,160,.72),rgba(0,110,255,.30)),
+    rgba(255,255,255,.06);
+  box-shadow:0 18px 50px rgba(0,0,0,.35);
+}
+.madTile.wide{
+  grid-column:1 / -1;
+  min-height:150px;
+}
+.madTile h2{
+  position:absolute;
+  left:18px;
+  bottom:16px;
+  margin:0;
+  font-size:1.7rem;
+}
+.madTile p{
+  max-width:70%;
+  color:#d9e0f3;
+  font-size:.9rem;
+}
+.madTile:after{
+  content:"";
+  position:absolute;
+  right:-35px;
+  bottom:-45px;
+  width:145px;
+  height:145px;
+  border-radius:28px;
+  background:conic-gradient(#ff3c78,#ffe55c,#36ffc0,#4fdcff,#8b5cff,#ff3c78);
+  opacity:.38;
+  transform:rotate(12deg);
+}
+.madCards{
+  position:absolute;
+  right:18px;
+  top:26px;
+  display:flex;
+}
+.madMiniCard{
+  width:58px;
+  aspect-ratio:2.5/3.5;
+  border-radius:10px;
+  margin-left:-18px;
+  border:1px solid rgba(255,255,255,.28);
+  display:grid;
+  place-items:center;
+  font-weight:950;
+  box-shadow:0 12px 25px rgba(0,0,0,.35);
+}
+.homeCompactTitle{
+  margin:0 0 14px;
+  font-size:clamp(2.2rem,9vw,4.2rem);
+}
+@media(max-width:620px){
+  .gameTopBar{grid-template-columns:repeat(4,1fr);gap:6px;padding:6px}
+  .topStat{font-size:.72rem;padding:7px 4px}
+  .topIcon{width:20px;height:20px;font-size:.62rem}
+  .madHero{min-height:165px;padding:20px}
+  .madHero h2{font-size:2.45rem}
+  .madHero p{max-width:70%;font-size:.9rem}
+  .madGrid{gap:12px}
+  .madTile{min-height:145px;border-radius:22px;padding:14px}
+  .madTile h2{font-size:1.35rem;left:14px;bottom:14px}
+  .madTile p{font-size:.78rem;max-width:68%}
+  .madMiniCard{width:46px}
+}
+
+
+.backBtn{
+display:inline-flex;
+align-items:center;
+gap:8px;
+margin-bottom:14px;
+background:rgba(255,255,255,.08);
+border:1px solid rgba(255,255,255,.12);
+border-radius:14px;
+padding:10px 14px;
+font-weight:900;
+cursor:pointer;
+}
+
+
+.binderGrid.paged{
+  grid-template-columns:repeat(3,1fr);
+  max-width:660px;
+}
+.pageControls{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  margin-top:16px;
+}
+.cardNumber{
+  position:absolute;
+  left:6px;
+  top:6px;
+  background:rgba(0,0,0,.68);
+  padding:4px 6px;
+  border-radius:8px;
+  font-size:.58rem;
+  font-weight:900;
+  z-index:2;
+}
+
+
+.objectiveSection{
+margin-bottom:24px;
+}
+.objectiveCard{
+background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.12);
+border-radius:18px;
+padding:14px;
+margin-bottom:12px;
+}
+.objectiveTop{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:12px;
+margin-bottom:8px;
+}
+.progressBar{
+height:10px;
+border-radius:999px;
+overflow:hidden;
+background:rgba(255,255,255,.08);
+}
+.progressFill{
+height:100%;
+background:linear-gradient(90deg,#42ecff,#8d5cff,#ff4bd0);
+}
+.claimed{
+opacity:.45;
+}
+.exchangeGrid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+gap:16px;
+}
+.exchangeCard{
+background:rgba(255,255,255,.06);
+border:1px solid rgba(255,255,255,.12);
+border-radius:20px;
+padding:18px;
+}
+.toast{
+position:fixed;
+right:18px;
+bottom:18px;
+background:#101522;
+border:1px solid rgba(255,255,255,.14);
+padding:14px 18px;
+border-radius:16px;
+font-weight:900;
+display:none;
+z-index:5000;
+box-shadow:0 20px 50px rgba(0,0,0,.45);
+}
+
+
+.exchangeSelector{
+margin-top:18px;
+background:rgba(255,255,255,.055);
+border:1px solid rgba(255,255,255,.12);
+border-radius:22px;
+padding:16px;
+}
+.exchangeList{
+display:grid;
+grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+gap:10px;
+margin-top:12px;
+}
+.exchangePick{
+background:rgba(0,0,0,.22);
+border:1px solid rgba(255,255,255,.12);
+border-radius:14px;
+padding:10px;
+cursor:pointer;
+}
+.exchangePick.selected{
+outline:3px solid #42ecff;
+background:rgba(66,236,255,.14);
+}
+.rewardGroupTitle{
+margin-top:18px;
+font-size:1.25rem;
+}
+.smallText{
+color:#cfd6ea;
+font-size:.88rem;
+}
+
+
+#closeSummaryBtn{
+  position:relative;
+  z-index:9999;
+  margin-top:14px;
+}
+
+
+/* V11 Binder + Pack Experience */
+.binderBook{
+  max-width:900px;
+  margin:0 auto;
+  padding:22px;
+  border-radius:30px;
+  background:
+    linear-gradient(135deg,rgba(255,255,255,.10),rgba(255,255,255,.025)),
+    linear-gradient(90deg,rgba(0,0,0,.45),transparent 9%,transparent 91%,rgba(0,0,0,.45));
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow:inset 0 0 45px rgba(0,0,0,.35),0 28px 80px rgba(0,0,0,.38);
+  position:relative;
+}
+
+.binderGrid{
+  display:grid!important;
+  grid-template-columns:repeat(3,1fr)!important;
+  gap:18px!important;
+  max-width:760px!important;
+  margin:auto!important;
+  perspective:1200px;
+}
+.slot{
+  background:rgba(0,0,0,.28)!important;
+  border:1px solid rgba(255,255,255,.13)!important;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.035),0 8px 18px rgba(0,0,0,.28);
+}
+.slot:after{
+  content:"";
+  position:absolute;
+  inset:5px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.08);
+  pointer-events:none;
+}
+.slot.empty{
+  background:rgba(0,0,0,.18)!important;
+  color:#68718e!important;
+}
+.pageControls{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:12px;
+  margin-top:18px;
+}
+.pageControls button{
+  min-width:90px;
+}
+.binderHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+.setProgress{
+  font-weight:900;
+  color:#dce6ff;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+  padding:10px 12px;
+}
+.cardRevealFlash{
+  animation:cardPop .42s ease both;
+}
+@keyframes cardPop{
+  from{transform:scale(.84) rotateY(72deg);opacity:.15;filter:brightness(1.6)}
+  to{transform:scale(1) rotateY(0);opacity:1;filter:brightness(1)}
+}
+.hitSlam{
+  animation:hitSlam 1s ease infinite;
+}
+@keyframes hitSlam{
+  0%,100%{transform:scale(1);letter-spacing:.1em}
+  50%{transform:scale(1.045);letter-spacing:.18em}
+}
+.bigHitText{
+  font-size:.85rem;
+  color:#bfc9e6;
+  position:absolute;
+  bottom:42px;
+  text-align:center;
+}
+.packCompleteCard{
+  position:absolute;
+  inset:24px;
+  border-radius:24px;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  background:rgba(0,0,0,.45);
+  border:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(10px);
+}
+
+
+.breaksFeed{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.breakTile{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.13);border-radius:24px;overflow:hidden;box-shadow:0 18px 45px rgba(0,0,0,.34)}
+.breakImage{height:210px;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:950;font-size:1.8rem;background:radial-gradient(circle at 70% 30%,rgba(255,255,255,.2),transparent 18%),linear-gradient(135deg,rgba(0,180,80,.65),rgba(90,0,180,.45))}
+.liveBadge{position:absolute;top:14px;left:14px;background:#ff2047;padding:8px 12px;border-radius:10px;font-weight:950}
+.breakBody{padding:14px}.breakMeta{color:#cdd6ec;font-size:.9rem;margin-bottom:12px}
+.slotGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:12px}
+.slotBtn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px;font-weight:900}
+.breakStream{display:none}.breakStream.show{display:block}
+.streamLayout{display:grid;grid-template-columns:1fr 300px;gap:18px}
+.streamScreen{min-height:680px;border-radius:28px;position:relative;overflow:hidden;background:radial-gradient(circle at 50% 20%,rgba(255,255,255,.16),transparent 18%),linear-gradient(160deg,#080b12,#1c1234 60%,#090b11);border:1px solid rgba(255,255,255,.13);display:flex;align-items:center;justify-content:center}
+.breakerTop{position:absolute;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;z-index:5;font-weight:900}
+.breakerName,.viewerCount{background:rgba(0,0,0,.48);border-radius:14px;padding:8px 12px}.viewerCount{background:#e82b51}
+.breakCard{width:260px;aspect-ratio:2.5/3.5;border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:4rem;font-weight:950;box-shadow:0 28px 70px rgba(0,0,0,.55);position:relative;animation:cardPop .42s ease both}
+.yourHit{outline:7px solid #ffe85c;box-shadow:0 0 0 4px rgba(255,232,92,.35),0 0 45px rgba(255,232,92,.75),0 28px 70px rgba(0,0,0,.55)}
+.yourHit:after{content:"YOUR HIT";position:absolute;top:-48px;left:50%;transform:translateX(-50%);background:#ffe85c;color:#111;padding:9px 14px;border-radius:999px;font-size:.9rem}
+.breakInfo{position:absolute;bottom:18px;left:18px;right:18px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px;text-align:center}
+.chatPanel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:14px;max-height:680px;overflow:auto}.chatLine{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:.9rem}.chatLine strong{color:#ffe85c}
+.breakSummary{display:none;margin-top:18px}.breakSummary.show{display:block}.breakSummaryGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:12px;margin-top:12px}.breakWinTile{text-align:center}.breakWinCard{aspect-ratio:2.5/3.5;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:950;border:1px solid rgba(255,255,255,.16)}
+@media(max-width:900px){.streamLayout{grid-template-columns:1fr}.chatPanel{max-height:260px}}
+
+
+.breakSelect{
+  width:100%;
+  margin:12px 0;
+  padding:12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(0,0,0,.32);
+  color:white;
+  font-weight:900;
+}
+.breakPrice{
+  margin-top:8px;
+  padding:10px 12px;
+  border-radius:14px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.1);
+  font-weight:900;
+}
+.delightGlow .breakImage{
+  background:
+    radial-gradient(circle at 70% 30%,rgba(255,255,255,.25),transparent 18%),
+    conic-gradient(#ff3079,#ffe145,#55ff95,#4fe0ff,#8f5cff,#ff3079);
+}
+.chaseGlow .breakImage{
+  background:
+    radial-gradient(circle at 70% 30%,rgba(255,255,255,.22),transparent 18%),
+    linear-gradient(135deg,rgba(255,70,190,.65),rgba(0,170,255,.38));
+}
+
+
+.breakHitLabel{
+  position:absolute;
+  top:74px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,.72);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;
+  padding:9px 14px;
+  font-weight:950;
+  letter-spacing:.04em;
+  z-index:10;
+}
+.breakSummaryHit{
+  position:relative;
+}
+.breakSummaryHit.mine{
+  outline:4px solid #ffe85c;
+  border-radius:14px;
+  box-shadow:0 0 26px rgba(255,232,92,.45);
+}
+.breakSummaryHit.mine:after{
+  content:"YOURS";
+  position:absolute;
+  top:-10px;
+  right:-6px;
+  background:#ffe85c;
+  color:#111;
+  border-radius:999px;
+  padding:4px 7px;
+  font-size:.62rem;
+  font-weight:950;
+}
+
+
+/* V14.3 validated Breaks update */
+.basketPanel{margin-top:12px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:12px}
+.basketItems{display:grid;gap:8px;margin-top:8px}
+.basketItem{display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(255,255,255,.07);border-radius:12px;padding:8px;font-size:.88rem}
+.basketActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chaseStrip{display:flex;gap:8px;margin:10px 0;overflow:auto}
+.chaseCard{min-width:82px;aspect-ratio:2.5/3.5;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:950;font-size:.78rem;border:1px solid rgba(255,255,255,.16)}
+.randomTag{display:inline-block;margin-left:6px;background:#ffe85c;color:#111;border-radius:999px;padding:3px 7px;font-size:.7rem;font-weight:950}
+.packCounter{position:absolute;top:62px;right:14px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:8px 12px;font-weight:950;z-index:5}
+.breakPack{width:190px;height:285px;border-radius:24px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:1.45rem;font-weight:950;background:linear-gradient(135deg,#101827,#6347ff,#20d9ff);border:2px solid rgba(255,255,255,.28);box-shadow:0 26px 70px rgba(0,0,0,.55);cursor:pointer}
+.fillLobby{display:none;margin-top:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:14px}
+.fillLobby.show{display:block}
+.fillLog{max-height:120px;overflow:auto;margin-top:8px;font-size:.86rem}
+
+
+/* V15 Breaks atmosphere/progression */
+.bigHitBurst{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+  font-size:4rem;
+  font-weight:950;
+  color:#ffe85c;
+  text-shadow:0 0 24px rgba(255,232,92,.85),0 6px 20px rgba(0,0,0,.8);
+  animation:boomPulse .9s ease both;
+  z-index:20;
+}
+@keyframes boomPulse{
+  0%{transform:scale(.5);opacity:0}
+  45%{transform:scale(1.15);opacity:1}
+  100%{transform:scale(1);opacity:.15}
+}
+.breakerComment{
+  position:absolute;
+  left:18px;
+  right:18px;
+  top:106px;
+  z-index:9;
+  text-align:center;
+  font-weight:950;
+  color:#fff;
+  background:rgba(0,0,0,.56);
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:999px;
+  padding:9px 14px;
+}
+
+
+/* V16 Break pacing + chase board */
+.streamChaseBoard{
+  position:absolute; top:62px; left:14px; right:14px; z-index:6;
+  display:flex; gap:8px; justify-content:center; pointer-events:none; flex-wrap:wrap;
+}
+.streamChaseItem{
+  background:rgba(0,0,0,.58); border:1px solid rgba(255,255,255,.14);
+  border-radius:12px; padding:7px 9px; font-size:.74rem; font-weight:950; color:#dfe8ff;
+}
+.streamChaseItem.pulled{background:rgba(255,232,92,.92); color:#111; box-shadow:0 0 22px rgba(255,232,92,.45)}
+.bestHitSpotlight{
+  margin:12px 0 18px; padding:16px; border-radius:22px;
+  background:linear-gradient(135deg,rgba(255,232,92,.18),rgba(139,92,255,.14));
+  border:1px solid rgba(255,255,255,.16); display:flex; align-items:center; gap:14px;
+}
+.bestHitCard{
+  width:80px; aspect-ratio:2.5/3.5; border-radius:12px;
+  display:flex; align-items:center; justify-content:center; font-weight:950; flex:0 0 auto;
+}
+
+
+/* V17 Break history + recap polish */
+.breakHistoryPanel{
+  margin-top:18px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:16px;
+}
+.breakHistoryList{display:grid;gap:10px;margin-top:10px}
+.breakHistoryItem{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:10px 12px}
+.topHitsRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:12px;margin:12px 0 18px}
+.roiPositive{color:#7CFF9B;font-weight:950}
+.roiNegative{color:#ff8d8d;font-weight:950}
+
+
+/* V18 Live fill realism */
+.fillStatusBar{width:100%;height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);margin:10px 0}
+.fillStatusInner{height:100%;border-radius:999px;background:linear-gradient(90deg,#6ea8ff,#9d7cff,#ffe85c);transition:width .4s ease}
+.fillHype{margin-top:8px;font-size:.85rem;color:#ffeaa7;font-weight:900}
+
+
+/* V19 Break tickets */
+.ticketPill{background:rgba(255,232,92,.12);border:1px solid rgba(255,232,92,.35)}
+.ticketNotice{margin-top:10px;padding:10px 12px;border-radius:14px;background:rgba(255,232,92,.12);border:1px solid rgba(255,232,92,.28);font-weight:900}
+
+/* V20 objective notifications + ticket clarity */
+.notifyDot{
+  display:none;
+  width:11px;
+  height:11px;
+  border-radius:999px;
+  background:#ff2b4f;
+  box-shadow:0 0 14px rgba(255,43,79,.75);
+  margin-left:8px;
+  vertical-align:middle;
+}
+.notifyDot.show{display:inline-block}
+.rewardLine{
+  margin-top:4px;
+  color:#ffe85c;
+  font-size:.86rem;
+  font-weight:900;
+}
+
+
+/* V21.1 Binder source filter */
+.breakWinBadge{
+  position:absolute;
+  top:6px;
+  right:6px;
+  font-size:.58rem;
+  font-weight:950;
+  padding:3px 6px;
+  border-radius:999px;
+  background:rgba(255,232,92,.18);
+  border:1px solid rgba(255,232,92,.45);
+  color:#ffe85c;
+  letter-spacing:.4px;
+}
+.sourceSelect{
+  min-width:150px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <section id="home" class="page active">
+  <div class="gameTopBar">
+    <div class="topStat"><span class="topIcon">LV</span><span>1</span></div>
+    <div class="topStat"><span class="topIcon">C</span><span id="coinsHome">5,000</span></div>
+    <div class="topStat"><span class="topIcon">CS</span><span id="valueHome">0</span></div>
+    <div class="topStat"><span class="topIcon">%</span><span id="homeProgress">0%</span></div>
+  </div>
+
+  <h1 class="homeCompactTitle">Chrome UCL</h1>
+
+  <div class="madHero" onclick="go('store')">
+    <h2>Rip Packs</h2>
+    <p>Open Chrome packs, build your binder and chase SSPs.</p>
+  </div>
+
+  <div class="madGrid">
+    <div class="madTile" onclick="go('store')">
+      <p>Standard, hobby and boxes.</p>
+      <div class="madCards">
+        <div class="madMiniCard colour">CB</div>
+        <div class="madMiniCard future">FS</div>
+        <div class="madMiniCard kaleidoscope">KA</div>
+      </div>
+      <h2>Store</h2>
+    </div>
+
+    <div class="madTile" onclick="go('binder')">
+      <p>View your collection.</p>
+      <div class="madCards">
+        <div class="madMiniCard base">BC</div>
+        <div class="madMiniCard kings">KOE</div>
+        <div class="madMiniCard anime">AN</div>
+      </div>
+      <h2>Binder</h2>
+    </div>
+
+    <div class="madTile" onclick="go('objectives')">
+      <p>Milestones and rewards.</p>
+      <div class="madCards">
+        <div class="madMiniCard deco">XP</div>
+        <div class="madMiniCard floodlights">OBJ</div>
+      </div>
+      <h2>Objectives <span id="objectivesNotifyDot" class="notifyDot"></span></h2>
+    </div>
+
+    <div class="madTile" onclick="go('exchange')">
+      <p>Trade dupes for upgrades.</p>
+      <div class="madCards">
+        <div class="madMiniCard base">x5</div>
+        <div class="madMiniCard future">UP</div>
+      </div>
+      <h2>Exchange</h2>
+    </div>
+
+    <div class="madTile wide" onclick="go('breaks')">
+      <p>Buy team/player slots and watch boxes open live.</p>
+      <div class="madCards">
+        <div class="madMiniCard kings">RM</div>
+        <div class="madMiniCard colour">BAR</div>
+        <div class="madMiniCard auto">AUTO</div>
+      </div>
+      <h2>Whatnot Breaks</h2>
+    </div>
+  </div>
+</section>
+
+
+  <section id="store" class="page">
+<button class="backBtn" onclick="go('home')">← Back</button>
+    <div class="topbar"><div><h1>Store</h1><div>Choose your next product.</div></div><div class="wallet"><div class="pill">Coins: <span id="coinsStore">15000</span></div></div></div>
+    <div class="layout">
+      <aside class="panel">
+        <h2>Products</h2>
+        <div class="product"><h3>Standard Pack</h3><p>Mostly base cards with occasional insert.</p><button onclick="buy('standard')">500 Coins</button></div>
+        <div class="product hobby"><h3>Hobby Pack</h3><p>Better odds, more inserts, autos possible.</p><button onclick="buy('hobby')">1,200 Coins</button></div>
+        <div class="product box"><h3>Hobby Box</h3><p>Premium opening experience.</p><button onclick="buy('box')">10,000 Coins</button></div>
+      </aside>
+      <main class="panel">
+        <div class="stage" id="stage">
+          <div class="pack hidden" id="pack"><span id="packText">PACK</span></div>
+          <div class="stack" id="stack">
+            <div class="card-back"></div><div class="card-back"></div><div class="card-back"></div><div class="card-back"></div><div class="card-back"></div>
+            <div class="hit" id="hit">HIT</div><div class="note" id="note">Buy a product to begin.</div>
+          </div>
+          <div class="summary" id="summary"></div>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <section id="binder" class="page">
+<button class="backBtn" onclick="go('home')">← Back</button>
+    <div class="topbar"><div><h1>Binder</h1><div>Checklist progress and owned cards.</div></div></div>
+    <div class="panel">
+      <div class="statsGrid"><div class="stat"><strong id="ownedStat">0</strong>Owned</div><div class="stat"><strong id="uniqueStat">0</strong>Unique</div><div class="stat"><strong id="progressStat">0%</strong>Progress</div><div class="stat"><strong id="valueStat">0</strong>Value</div></div>
+      <div class="toolbar"><input id="search" placeholder="Search player, set or card number..." oninput="binderPage=0;renderBinder()"><select id="filter" onchange="binderPage=0;renderBinder()">
+<option value="all">All Cards</option>
+<option value="Base">Base</option>
+<option value="Future Stars">Future Stars</option>
+<option value="Kings">Kings of Europe</option>
+<option value="Deco">Deco</option>
+<option value="Floodlights">Floodlights</option>
+<option value="Colour Blast">Colour Blast</option>
+<option value="アニメ">Anime</option>
+<option value="Kaleidoscope">Kaleidoscope</option>
+<option value="Blacklight">Blacklight</option><option value="Chrome Auto">Chrome Auto</option>
+</select>
+<select id="sourceFilter" class="sourceSelect" onchange="binderPage=0;renderBinder()">
+<option value="all">All Sources</option>
+<option value="pack">Pack Pulled</option>
+<option value="break">Won in Breaks</option>
+</select>
+<button onclick="sellDuplicates()">Sell Duplicates</button></div>
+      <div class="binderHeader"><div class="setProgress" id="setProgressText">Set Progress</div></div><div class="binderBook"><div class="binderGrid paged" id="binderGrid"></div></div><div class="pageControls"><button onclick="prevPage()">Prev</button><span id="pageText">Page 1</span><button onclick="nextPage()">Next</button></div>
+    </div>
+  </section>
+
+  
+<section id="objectives" class="page">
+<button class="backBtn" onclick="go('home')">← Back</button>
+
+<div class="topbar">
+<div>
+<h1>Objectives</h1>
+<div>Daily goals and long-term milestones.</div>
+</div>
+</div>
+
+<div class="panel">
+
+<div class="objectiveSection">
+<h2>Daily Objectives</h2>
+<div id="dailyObjectives"></div>
+</div>
+
+<div class="objectiveSection">
+<h2>Pack Milestones</h2>
+<div id="packMilestoneObjectives"></div>
+</div>
+
+<div class="objectiveSection">
+<h2>Collection Milestones</h2>
+<div id="milestoneObjectives"></div>
+</div>
+
+<div class="objectiveSection">
+<h2>Set Completion Rewards</h2>
+<div id="setRewardObjectives"></div>
+</div>
+
+<div class="objectiveSection">
+<h2>Team Completion Rewards</h2>
+<div id="teamRewardObjectives"></div>
+</div>
+
+</div>
+</section>
+
+  
+
+<section id="exchange" class="page">
+<button class="backBtn" onclick="go('home')">← Back</button>
+
+<div class="topbar">
+<div>
+<h1>Exchange</h1>
+<div>Pick duplicate cards and exchange them for rewards.</div>
+</div>
+</div>
+
+<div class="exchangeGrid">
+
+<div class="exchangeCard">
+<h2>Base Upgrade</h2>
+<p>Choose 5 duplicate base cards for a random insert.</p>
+<button onclick="startExchange('base',5,'insert')">Choose Cards</button>
+</div>
+
+<div class="exchangeCard">
+<h2>Insert Upgrade</h2>
+<p>Choose 3 duplicate inserts for 1,200 coins towards a hobby pack.</p>
+<button onclick="startExchange('insert',3,'coins')">Choose Cards</button>
+</div>
+
+<div class="exchangeCard">
+<h2>Premium Upgrade</h2>
+<p>Choose 2 duplicate SSPs for a guaranteed auto.</p>
+<button onclick="startExchange('ssp',2,'auto')">Choose Cards</button>
+</div>
+
+</div>
+
+<div class="exchangeSelector" id="exchangeSelector" style="display:none;"></div>
+</section>
+
+
+  
+<section id="breaks" class="page">
+<button class="backBtn" onclick="go('home')">← Back</button>
+<div class="topbar"><div><h1>Breaks</h1><div>Buy team slots and watch live-style hobby box breaks.</div></div><div class="wallet"><div class="pill">Coins: <span id="coinsBreaks">15000</span></div><div class="pill ticketPill">Tickets: <span id="breakTicketsCount">0</span></div></div></div>
+<div id="breaksHub"><div class="breaksFeed" id="breaksFeed"></div><div class="breakHistoryPanel"><h2>Previous Breaks</h2><div class="smallText">Your most recent break results.</div><div class="breakHistoryList" id="breakHistoryList"><div class="smallText">No breaks completed yet.</div></div></div></div>
+<div class="breakStream" id="breakStream">
+<button class="backBtn" onclick="exitBreak()">← Back to Breaks</button>
+<div class="streamLayout">
+<div>
+<div class="streamScreen" id="streamScreen">
+<div class="breakerTop">
+  <div class="breakerName" id="streamBreaker">breaker</div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <div class="breakerName">Coins: <span id="coinsStream">15000</span></div><div class="breakerName ticketPill">Tickets: <span id="breakTicketsStream">0</span></div>
+    <div class="viewerCount" id="viewerCount">Live • 0</div>
+  </div>
+</div>
+<div id="streamCardArea"><div style="text-align:center;color:#cfd6ea;"><h2>Break Ready</h2><p>Press start to begin the box break.</p></div></div>
+<div class="breakInfo" id="breakInfo">Choose a slot to begin.</div>
+</div>
+<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;"><button id="startBreakBtn" onclick="startBreakReveal()">Start Break</button><button class="secondary" onclick="finishBreakEarly()">Finish Break</button></div>
+<div class="panel breakSummary" id="breakSummary"></div>
+</div>
+<div class="chatPanel" id="chatPanel"></div>
+</div>
+</div>
+</section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+const pool = [
+  {
+    "id": "BC-1",
+    "set": "Base",
+    "cls": "base",
+    "player": "Rayan Cherki",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-2",
+    "set": "Base",
+    "cls": "base",
+    "player": "Bernardo Silva",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-3",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ousmane Dembélé",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-4",
+    "set": "Base",
+    "cls": "base",
+    "player": "Michael Olise",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "BC-5",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jobe Bellingham",
+    "team": "Borussia Dortmund",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund",
+      "Rookie Spot",
+      "Jobe Bellingham"
+    ]
+  },
+  {
+    "id": "BC-6",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jeremie Frimpong",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-7",
+    "set": "Base",
+    "cls": "base",
+    "player": "Matteo Politano",
+    "team": "SSC Napoli",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SSC Napoli"
+    ]
+  },
+  {
+    "id": "BC-8",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jamaldeen Jimoh-Aloba",
+    "team": "Aston Villa",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Aston Villa",
+      "Rookie Spot",
+      "Jamaldeen Jimoh-Aloba"
+    ]
+  },
+  {
+    "id": "BC-9",
+    "set": "Base",
+    "cls": "base",
+    "player": "Axel Tapé",
+    "team": "Bayer 04 Leverkusen",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Bayer 04 Leverkusen",
+      "Rookie Spot",
+      "Axel Tapé"
+    ]
+  },
+  {
+    "id": "BC-10",
+    "set": "Base",
+    "cls": "base",
+    "player": "Lamine Yamal",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "BC-11",
+    "set": "Base",
+    "cls": "base",
+    "player": "Stanislav Lobotka",
+    "team": "SSC Napoli",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SSC Napoli"
+    ]
+  },
+  {
+    "id": "BC-12",
+    "set": "Base",
+    "cls": "base",
+    "player": "Bukayo Saka",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "BC-13",
+    "set": "Base",
+    "cls": "base",
+    "player": "Antony",
+    "team": "Real Betis Balompié",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Betis Balompié"
+    ]
+  },
+  {
+    "id": "BC-14",
+    "set": "Base",
+    "cls": "base",
+    "player": "João Neves",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-15",
+    "set": "Base",
+    "cls": "base",
+    "player": "Weston McKennie",
+    "team": "Juventus",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "BC-16",
+    "set": "Base",
+    "cls": "base",
+    "player": "Richard Ríos",
+    "team": "SL Benfica",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "SL Benfica",
+      "Rookie Spot",
+      "Richard Ríos"
+    ]
+  },
+  {
+    "id": "BC-17",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jonathan David",
+    "team": "Juventus",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "BC-18",
+    "set": "Base",
+    "cls": "base",
+    "player": "Brennan Johnson",
+    "team": "Tottenham Hotspur",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Tottenham Hotspur"
+    ]
+  },
+  {
+    "id": "BC-19",
+    "set": "Base",
+    "cls": "base",
+    "player": "Gabriel Martinelli",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "BC-20",
+    "set": "Base",
+    "cls": "base",
+    "player": "Iñaki Williams",
+    "team": "Athletic Club",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Athletic Club"
+    ]
+  },
+  {
+    "id": "BC-23",
+    "set": "Base",
+    "cls": "base",
+    "player": "Joelinton",
+    "team": "Newcastle United",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Newcastle United"
+    ]
+  },
+  {
+    "id": "BC-24",
+    "set": "Base",
+    "cls": "base",
+    "player": "Malik Tillman",
+    "team": "Bayer 04 Leverkusen",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Bayer 04 Leverkusen"
+    ]
+  },
+  {
+    "id": "BC-25",
+    "set": "Base",
+    "cls": "base",
+    "player": "Julien Duranville",
+    "team": "Borussia Dortmund",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund"
+    ]
+  },
+  {
+    "id": "BC-26",
+    "set": "Base",
+    "cls": "base",
+    "player": "Robin Mirisola",
+    "team": "KRC Genk",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "KRC Genk"
+    ]
+  },
+  {
+    "id": "BC-27",
+    "set": "Base",
+    "cls": "base",
+    "player": "Christian Kofane",
+    "team": "Bayer 04 Leverkusen",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Bayer 04 Leverkusen"
+    ]
+  },
+  {
+    "id": "BC-28",
+    "set": "Base",
+    "cls": "base",
+    "player": "John McGinn",
+    "team": "Aston Villa",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Aston Villa"
+    ]
+  },
+  {
+    "id": "BC-29",
+    "set": "Base",
+    "cls": "base",
+    "player": "Kendry Páez",
+    "team": "RC Strasbourg Alsace",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "RC Strasbourg Alsace",
+      "Rookie Spot",
+      "Kendry Páez"
+    ]
+  },
+  {
+    "id": "BC-30",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jota",
+    "team": "Celtic FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Celtic FC"
+    ]
+  },
+  {
+    "id": "BC-31",
+    "set": "Base",
+    "cls": "base",
+    "player": "Eduardo Camavinga",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-32",
+    "set": "Base",
+    "cls": "base",
+    "player": "Shumaira Mheuka",
+    "team": "Chelsea FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC",
+      "Rookie Spot",
+      "Shumaira Mheuka"
+    ]
+  },
+  {
+    "id": "BC-33",
+    "set": "Base",
+    "cls": "base",
+    "player": "Savinho",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-34",
+    "set": "Base",
+    "cls": "base",
+    "player": "Vangelis Pavlidis",
+    "team": "SL Benfica",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SL Benfica"
+    ]
+  },
+  {
+    "id": "BC-35",
+    "set": "Base",
+    "cls": "base",
+    "player": "Isco",
+    "team": "Real Betis Balompié",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Betis Balompié"
+    ]
+  },
+  {
+    "id": "BC-36",
+    "set": "Base",
+    "cls": "base",
+    "player": "Hugo Larsson",
+    "team": "Eintracht Frankfurt",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Eintracht Frankfurt"
+    ]
+  },
+  {
+    "id": "BC-37",
+    "set": "Base",
+    "cls": "base",
+    "player": "Federico Dimarco",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano"
+    ]
+  },
+  {
+    "id": "BC-38",
+    "set": "Base",
+    "cls": "base",
+    "player": "Nico Williams",
+    "team": "Athletic Club",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Athletic Club"
+    ]
+  },
+  {
+    "id": "BC-39",
+    "set": "Base",
+    "cls": "base",
+    "player": "Dean Huijsen",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-40",
+    "set": "Base",
+    "cls": "base",
+    "player": "Reo Hatate",
+    "team": "Celtic FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Celtic FC"
+    ]
+  },
+  {
+    "id": "BC-41",
+    "set": "Base",
+    "cls": "base",
+    "player": "Scott McTominay",
+    "team": "SSC Napoli",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SSC Napoli"
+    ]
+  },
+  {
+    "id": "BC-42",
+    "set": "Base",
+    "cls": "base",
+    "player": "Viktor Gyökeres",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "BC-43",
+    "set": "Base",
+    "cls": "base",
+    "player": "Sean Steur",
+    "team": "AFC Ajax",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "AFC Ajax"
+    ]
+  },
+  {
+    "id": "BC-44",
+    "set": "Base",
+    "cls": "base",
+    "player": "Alejo Sarco",
+    "team": "Bayer 04 Leverkusen",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Bayer 04 Leverkusen"
+    ]
+  },
+  {
+    "id": "BC-45",
+    "set": "Base",
+    "cls": "base",
+    "player": "Mohamed Diomandé",
+    "team": "Rangers F.C.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Rangers F.C."
+    ]
+  },
+  {
+    "id": "BC-46",
+    "set": "Base",
+    "cls": "base",
+    "player": "Vitinha",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-47",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jérémy Doku",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-48",
+    "set": "Base",
+    "cls": "base",
+    "player": "Marcus Thuram",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano"
+    ]
+  },
+  {
+    "id": "BC-49",
+    "set": "Base",
+    "cls": "base",
+    "player": "Divine Mukasa",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-50",
+    "set": "Base",
+    "cls": "base",
+    "player": "William Gomes",
+    "team": "FC Porto",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Porto"
+    ]
+  },
+  {
+    "id": "BC-51",
+    "set": "Base",
+    "cls": "base",
+    "player": "Cucho",
+    "team": "Real Betis Balompié",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Betis Balompié"
+    ]
+  },
+  {
+    "id": "BC-53",
+    "set": "Base",
+    "cls": "base",
+    "player": "Morgan Gibbs-White",
+    "team": "Nottingham Forest",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Nottingham Forest"
+    ]
+  },
+  {
+    "id": "BC-54",
+    "set": "Base",
+    "cls": "base",
+    "player": "Robert Lewandowski",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "BC-55",
+    "set": "Base",
+    "cls": "base",
+    "player": "Joshua Kimmich",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "BC-57",
+    "set": "Base",
+    "cls": "base",
+    "player": "Max Dowman",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC",
+      "Rookie Spot",
+      "Max Dowman"
+    ]
+  },
+  {
+    "id": "BC-59",
+    "set": "Base",
+    "cls": "base",
+    "player": "Serhou Guirassy",
+    "team": "Borussia Dortmund",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund"
+    ]
+  },
+  {
+    "id": "BC-60",
+    "set": "Base",
+    "cls": "base",
+    "player": "Eduardo Felicíssimo",
+    "team": "Sporting Clube de Portugal",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Sporting Clube de Portugal",
+      "Rookie Spot",
+      "Eduardo Felicíssimo"
+    ]
+  },
+  {
+    "id": "BC-61",
+    "set": "Base",
+    "cls": "base",
+    "player": "Elye Wahi",
+    "team": "Eintracht Frankfurt",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Eintracht Frankfurt"
+    ]
+  },
+  {
+    "id": "BC-62",
+    "set": "Base",
+    "cls": "base",
+    "player": "Martin Fernandes",
+    "team": "FC Porto",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Porto"
+    ]
+  },
+  {
+    "id": "BC-63",
+    "set": "Base",
+    "cls": "base",
+    "player": "Bradley Barcola",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-64",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jude Bellingham",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-65",
+    "set": "Base",
+    "cls": "base",
+    "player": "Federico Valverde",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-66",
+    "set": "Base",
+    "cls": "base",
+    "player": "Estêvão Willian",
+    "team": "Chelsea FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC",
+      "Rookie Spot",
+      "Estêvão Willian"
+    ]
+  },
+  {
+    "id": "BC-67",
+    "set": "Base",
+    "cls": "base",
+    "player": "Alexis Mac Allister",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-68",
+    "set": "Base",
+    "cls": "base",
+    "player": "Nick Woltemade",
+    "team": "Newcastle United",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Newcastle United"
+    ]
+  },
+  {
+    "id": "BC-69",
+    "set": "Base",
+    "cls": "base",
+    "player": "Nuno Mendes",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-70",
+    "set": "Base",
+    "cls": "base",
+    "player": "Reggie Walsh",
+    "team": "Chelsea FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC",
+      "Rookie Spot",
+      "Reggie Walsh"
+    ]
+  },
+  {
+    "id": "BC-71",
+    "set": "Base",
+    "cls": "base",
+    "player": "Khéphren Thuram",
+    "team": "Juventus",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "BC-72",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ibrahim Maza",
+    "team": "Bayer 04 Leverkusen",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Bayer 04 Leverkusen"
+    ]
+  },
+  {
+    "id": "BC-73",
+    "set": "Base",
+    "cls": "base",
+    "player": "Giovanni Leoni",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC",
+      "Rookie Spot",
+      "Giovanni Leoni"
+    ]
+  },
+  {
+    "id": "BC-74",
+    "set": "Base",
+    "cls": "base",
+    "player": "Florian Wirtz",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-75",
+    "set": "Base",
+    "cls": "base",
+    "player": "Emiliano Martínez",
+    "team": "Aston Villa",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Aston Villa"
+    ]
+  },
+  {
+    "id": "BC-76",
+    "set": "Base",
+    "cls": "base",
+    "player": "Romelu Lukaku",
+    "team": "SSC Napoli",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SSC Napoli"
+    ]
+  },
+  {
+    "id": "BC-77",
+    "set": "Base",
+    "cls": "base",
+    "player": "Giovanni Di Lorenzo",
+    "team": "SSC Napoli",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SSC Napoli"
+    ]
+  },
+  {
+    "id": "BC-78",
+    "set": "Base",
+    "cls": "base",
+    "player": "Dominik Szoboszlai",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-79",
+    "set": "Base",
+    "cls": "base",
+    "player": "Virgil van Dijk",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-80",
+    "set": "Base",
+    "cls": "base",
+    "player": "Omar Marmoush",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-81",
+    "set": "Base",
+    "cls": "base",
+    "player": "Julian Brandt",
+    "team": "Borussia Dortmund",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund"
+    ]
+  },
+  {
+    "id": "BC-82",
+    "set": "Base",
+    "cls": "base",
+    "player": "Antoine Griezmann",
+    "team": "Atlético de Madrid",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Atlético de Madrid"
+    ]
+  },
+  {
+    "id": "BC-84",
+    "set": "Base",
+    "cls": "base",
+    "player": "Claudio Echeverri",
+    "team": "Bayer 04 Leverkusen",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Bayer 04 Leverkusen",
+      "Rookie Spot",
+      "Claudio Echeverri"
+    ]
+  },
+  {
+    "id": "BC-85",
+    "set": "Base",
+    "cls": "base",
+    "player": "Xavi Simons",
+    "team": "Tottenham Hotspur",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Tottenham Hotspur"
+    ]
+  },
+  {
+    "id": "BC-87",
+    "set": "Base",
+    "cls": "base",
+    "player": "Gabri Veiga",
+    "team": "FC Porto",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Porto"
+    ]
+  },
+  {
+    "id": "BC-88",
+    "set": "Base",
+    "cls": "base",
+    "player": "Wisdom Mike",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München",
+      "Rookie Spot",
+      "Wisdom Mike"
+    ]
+  },
+  {
+    "id": "BC-89",
+    "set": "Base",
+    "cls": "base",
+    "player": "Mohammed Kudus",
+    "team": "Tottenham Hotspur",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Tottenham Hotspur"
+    ]
+  },
+  {
+    "id": "BC-90",
+    "set": "Base",
+    "cls": "base",
+    "player": "Alphonso Davies",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "BC-91",
+    "set": "Base",
+    "cls": "base",
+    "player": "Victor Froholdt",
+    "team": "FC Porto",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Porto",
+      "Rookie Spot",
+      "Victor Froholdt"
+    ]
+  },
+  {
+    "id": "BC-92",
+    "set": "Base",
+    "cls": "base",
+    "player": "Marquinhos",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-93",
+    "set": "Base",
+    "cls": "base",
+    "player": "Quim Junyent",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona",
+      "Rookie Spot",
+      "Quim Junyent"
+    ]
+  },
+  {
+    "id": "BC-94",
+    "set": "Base",
+    "cls": "base",
+    "player": "Lucas Michal",
+    "team": "AS Monaco",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "AS Monaco",
+      "Rookie Spot",
+      "Lucas Michal"
+    ]
+  },
+  {
+    "id": "BC-96",
+    "set": "Base",
+    "cls": "base",
+    "player": "Elliot Anderson",
+    "team": "Nottingham Forest",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Nottingham Forest"
+    ]
+  },
+  {
+    "id": "BC-97",
+    "set": "Base",
+    "cls": "base",
+    "player": "Raphinha",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "BC-98",
+    "set": "Base",
+    "cls": "base",
+    "player": "Daizen Maeda",
+    "team": "Celtic FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Celtic FC"
+    ]
+  },
+  {
+    "id": "BC-99",
+    "set": "Base",
+    "cls": "base",
+    "player": "Nico Schlotterbeck",
+    "team": "Borussia Dortmund",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund"
+    ]
+  },
+  {
+    "id": "BC-100",
+    "set": "Base",
+    "cls": "base",
+    "player": "Giuliano Simeone",
+    "team": "Atlético de Madrid",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Atlético de Madrid"
+    ]
+  },
+  {
+    "id": "BC-101",
+    "set": "Base",
+    "cls": "base",
+    "player": "Minjae Kim",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "BC-102",
+    "set": "Base",
+    "cls": "base",
+    "player": "Rodrygo",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-103",
+    "set": "Base",
+    "cls": "base",
+    "player": "Phil Foden",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-104",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ousmane Diomande",
+    "team": "Sporting Clube de Portugal",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Sporting Clube de Portugal"
+    ]
+  },
+  {
+    "id": "BC-105",
+    "set": "Base",
+    "cls": "base",
+    "player": "Maroan Sannadi",
+    "team": "Athletic Club",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Athletic Club"
+    ]
+  },
+  {
+    "id": "BC-106",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ricardo Pepi",
+    "team": "PSV Eindhoven",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "PSV Eindhoven"
+    ]
+  },
+  {
+    "id": "BC-107",
+    "set": "Base",
+    "cls": "base",
+    "player": "Andrey Santos",
+    "team": "Chelsea FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "BC-108",
+    "set": "Base",
+    "cls": "base",
+    "player": "Nicolò Barella",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano"
+    ]
+  },
+  {
+    "id": "BC-109",
+    "set": "Base",
+    "cls": "base",
+    "player": "Sandro Tonali",
+    "team": "Newcastle United",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Newcastle United"
+    ]
+  },
+  {
+    "id": "BC-110",
+    "set": "Base",
+    "cls": "base",
+    "player": "Emmanuel Emegha",
+    "team": "RC Strasbourg Alsace",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "RC Strasbourg Alsace"
+    ]
+  },
+  {
+    "id": "BC-111",
+    "set": "Base",
+    "cls": "base",
+    "player": "Dro",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona",
+      "Rookie Spot",
+      "Dro"
+    ]
+  },
+  {
+    "id": "BC-112",
+    "set": "Base",
+    "cls": "base",
+    "player": "Kylian Mbappé",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-113",
+    "set": "Base",
+    "cls": "base",
+    "player": "William Saliba",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "BC-114",
+    "set": "Base",
+    "cls": "base",
+    "player": "Abdoul Ouattara",
+    "team": "RC Strasbourg Alsace",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "RC Strasbourg Alsace",
+      "Rookie Spot",
+      "Abdoul Ouattara"
+    ]
+  },
+  {
+    "id": "BC-115",
+    "set": "Base",
+    "cls": "base",
+    "player": "Vini Jr.",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-116",
+    "set": "Base",
+    "cls": "base",
+    "player": "Alexander Isak",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-117",
+    "set": "Base",
+    "cls": "base",
+    "player": "Bruno Guimarães",
+    "team": "Newcastle United",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Newcastle United"
+    ]
+  },
+  {
+    "id": "BC-118",
+    "set": "Base",
+    "cls": "base",
+    "player": "Cole Palmer",
+    "team": "Chelsea FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "BC-119",
+    "set": "Base",
+    "cls": "base",
+    "player": "Arthur Theate",
+    "team": "Eintracht Frankfurt",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Eintracht Frankfurt"
+    ]
+  },
+  {
+    "id": "BC-120",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ousmane Diallo",
+    "team": "Borussia Dortmund",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund",
+      "Rookie Spot",
+      "Ousmane Diallo"
+    ]
+  },
+  {
+    "id": "BC-121",
+    "set": "Base",
+    "cls": "base",
+    "player": "Lucas Bergvall",
+    "team": "Tottenham Hotspur",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Tottenham Hotspur"
+    ]
+  },
+  {
+    "id": "BC-122",
+    "set": "Base",
+    "cls": "base",
+    "player": "Noah Adedeji-Sternberg",
+    "team": "KRC Genk",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "KRC Genk",
+      "Rookie Spot",
+      "Noah Adedeji-Sternberg"
+    ]
+  },
+  {
+    "id": "BC-123",
+    "set": "Base",
+    "cls": "base",
+    "player": "Takumi Minamino",
+    "team": "AS Monaco",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "AS Monaco"
+    ]
+  },
+  {
+    "id": "BC-124",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ollie Watkins",
+    "team": "Aston Villa",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Aston Villa"
+    ]
+  },
+  {
+    "id": "BC-125",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ben Parkinson",
+    "team": "Newcastle United",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Newcastle United",
+      "Rookie Spot",
+      "Ben Parkinson"
+    ]
+  },
+  {
+    "id": "BC-126",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jarne Steuckers",
+    "team": "KRC Genk",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "KRC Genk",
+      "Rookie Spot",
+      "Jarne Steuckers"
+    ]
+  },
+  {
+    "id": "BC-127",
+    "set": "Base",
+    "cls": "base",
+    "player": "Kenneth Taylor",
+    "team": "AFC Ajax",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "AFC Ajax"
+    ]
+  },
+  {
+    "id": "BC-128",
+    "set": "Base",
+    "cls": "base",
+    "player": "Karim Adeyemi",
+    "team": "Borussia Dortmund",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund"
+    ]
+  },
+  {
+    "id": "BC-130",
+    "set": "Base",
+    "cls": "base",
+    "player": "Jamal Musiala",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "BC-131",
+    "set": "Base",
+    "cls": "base",
+    "player": "Luis Henrique",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano"
+    ]
+  },
+  {
+    "id": "BC-132",
+    "set": "Base",
+    "cls": "base",
+    "player": "Gavi",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "BC-133",
+    "set": "Base",
+    "cls": "base",
+    "player": "Samu Aghehowa",
+    "team": "FC Porto",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Porto"
+    ]
+  },
+  {
+    "id": "BC-134",
+    "set": "Base",
+    "cls": "base",
+    "player": "Callum Olusesi",
+    "team": "Tottenham Hotspur",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Tottenham Hotspur",
+      "Rookie Spot",
+      "Callum Olusesi"
+    ]
+  },
+  {
+    "id": "BC-135",
+    "set": "Base",
+    "cls": "base",
+    "player": "Frenkie de Jong",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "BC-136",
+    "set": "Base",
+    "cls": "base",
+    "player": "Mohamed Salah",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-137",
+    "set": "Base",
+    "cls": "base",
+    "player": "Omar Janneh",
+    "team": "Atlético de Madrid",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Atlético de Madrid",
+      "Rookie Spot",
+      "Omar Janneh"
+    ]
+  },
+  {
+    "id": "BC-138",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ferran Torres",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "BC-139",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ivan Perišić",
+    "team": "PSV Eindhoven",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "PSV Eindhoven"
+    ]
+  },
+  {
+    "id": "BC-140",
+    "set": "Base",
+    "cls": "base",
+    "player": "Nasser Djiga",
+    "team": "Rangers F.C.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Rangers F.C.",
+      "Rookie Spot",
+      "Nasser Djiga"
+    ]
+  },
+  {
+    "id": "BC-141",
+    "set": "Base",
+    "cls": "base",
+    "player": "Trent Alexander-Arnold",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "BC-142",
+    "set": "Base",
+    "cls": "base",
+    "player": "Reigan Heskey",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City",
+      "Rookie Spot",
+      "Reigan Heskey"
+    ]
+  },
+  {
+    "id": "BC-143",
+    "set": "Base",
+    "cls": "base",
+    "player": "Alessandro Bastoni",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano"
+    ]
+  },
+  {
+    "id": "BC-144",
+    "set": "Base",
+    "cls": "base",
+    "player": "Dominic Solanke",
+    "team": "Tottenham Hotspur",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Tottenham Hotspur"
+    ]
+  },
+  {
+    "id": "BC-145",
+    "set": "Base",
+    "cls": "base",
+    "player": "Denzel Dumfries",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano"
+    ]
+  },
+  {
+    "id": "BC-146",
+    "set": "Base",
+    "cls": "base",
+    "player": "Michael Bresser",
+    "team": "PSV Eindhoven",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "PSV Eindhoven",
+      "Rookie Spot",
+      "Michael Bresser"
+    ]
+  },
+  {
+    "id": "BC-147",
+    "set": "Base",
+    "cls": "base",
+    "player": "Kenan Yıldız",
+    "team": "Juventus",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "BC-148",
+    "set": "Base",
+    "cls": "base",
+    "player": "Alistair Johnston",
+    "team": "Celtic FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Celtic FC"
+    ]
+  },
+  {
+    "id": "BC-149",
+    "set": "Base",
+    "cls": "base",
+    "player": "Abde Ezzalzouli",
+    "team": "Real Betis Balompié",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Betis Balompié"
+    ]
+  },
+  {
+    "id": "BC-150",
+    "set": "Base",
+    "cls": "base",
+    "player": "Konstantinos Karetsas",
+    "team": "KRC Genk",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "KRC Genk"
+    ]
+  },
+  {
+    "id": "BC-151",
+    "set": "Base",
+    "cls": "base",
+    "player": "Mika Godts",
+    "team": "AFC Ajax",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "AFC Ajax"
+    ]
+  },
+  {
+    "id": "BC-152",
+    "set": "Base",
+    "cls": "base",
+    "player": "Gleison Bremer",
+    "team": "Juventus",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "BC-153",
+    "set": "Base",
+    "cls": "base",
+    "player": "Patrik Schick",
+    "team": "Bayer 04 Leverkusen",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Bayer 04 Leverkusen"
+    ]
+  },
+  {
+    "id": "BC-154",
+    "set": "Base",
+    "cls": "base",
+    "player": "Julián Alvarez",
+    "team": "Atlético de Madrid",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Atlético de Madrid"
+    ]
+  },
+  {
+    "id": "BC-155",
+    "set": "Base",
+    "cls": "base",
+    "player": "Tijjani Reijnders",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-156",
+    "set": "Base",
+    "cls": "base",
+    "player": "Lautaro Martínez",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano"
+    ]
+  },
+  {
+    "id": "BC-157",
+    "set": "Base",
+    "cls": "base",
+    "player": "Martin Ødegaard",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "BC-159",
+    "set": "Base",
+    "cls": "base",
+    "player": "Anthony Gordon",
+    "team": "Newcastle United",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Newcastle United"
+    ]
+  },
+  {
+    "id": "BC-160",
+    "set": "Base",
+    "cls": "base",
+    "player": "Leandro Santos",
+    "team": "SL Benfica",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "SL Benfica",
+      "Rookie Spot",
+      "Leandro Santos"
+    ]
+  },
+  {
+    "id": "BC-161",
+    "set": "Base",
+    "cls": "base",
+    "player": "Igor Jesus",
+    "team": "Nottingham Forest",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Nottingham Forest"
+    ]
+  },
+  {
+    "id": "BC-162",
+    "set": "Base",
+    "cls": "base",
+    "player": "Mario Götze",
+    "team": "Eintracht Frankfurt",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Eintracht Frankfurt"
+    ]
+  },
+  {
+    "id": "BC-163",
+    "set": "Base",
+    "cls": "base",
+    "player": "Pio Esposito",
+    "team": "FC Internazionale Milano",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Internazionale Milano",
+      "Rookie Spot",
+      "Pio Esposito"
+    ]
+  },
+  {
+    "id": "BC-164",
+    "set": "Base",
+    "cls": "base",
+    "player": "Declan Rice",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "BC-165",
+    "set": "Base",
+    "cls": "base",
+    "player": "Archie Gray",
+    "team": "Tottenham Hotspur",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Tottenham Hotspur"
+    ]
+  },
+  {
+    "id": "BC-166",
+    "set": "Base",
+    "cls": "base",
+    "player": "Quentin Ndjantou",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain",
+      "Rookie Spot",
+      "Quentin Ndjantou"
+    ]
+  },
+  {
+    "id": "BC-167",
+    "set": "Base",
+    "cls": "base",
+    "player": "Khvicha Kvaratskhelia",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-168",
+    "set": "Base",
+    "cls": "base",
+    "player": "João Rego",
+    "team": "SL Benfica",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "SL Benfica",
+      "Rookie Spot",
+      "João Rego"
+    ]
+  },
+  {
+    "id": "BC-169",
+    "set": "Base",
+    "cls": "base",
+    "player": "Sergiño Dest",
+    "team": "PSV Eindhoven",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "PSV Eindhoven"
+    ]
+  },
+  {
+    "id": "BC-170",
+    "set": "Base",
+    "cls": "base",
+    "player": "Warren Zaïre-Emery",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-171",
+    "set": "Base",
+    "cls": "base",
+    "player": "Rodri",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-172",
+    "set": "Base",
+    "cls": "base",
+    "player": "Franco Mastantuono",
+    "team": "Real Madrid C.F.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F.",
+      "Rookie Spot",
+      "Franco Mastantuono"
+    ]
+  },
+  {
+    "id": "BC-173",
+    "set": "Base",
+    "cls": "base",
+    "player": "Don-Angelo Konadu",
+    "team": "AFC Ajax",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "AFC Ajax",
+      "Rookie Spot",
+      "Don-Angelo Konadu"
+    ]
+  },
+  {
+    "id": "BC-174",
+    "set": "Base",
+    "cls": "base",
+    "player": "Pablo García",
+    "team": "Real Betis Balompié",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Real Betis Balompié",
+      "Rookie Spot",
+      "Pablo García"
+    ]
+  },
+  {
+    "id": "BC-175",
+    "set": "Base",
+    "cls": "base",
+    "player": "Dušan Vlahović",
+    "team": "Juventus",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "BC-176",
+    "set": "Base",
+    "cls": "base",
+    "player": "Hugo Ekitike",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-177",
+    "set": "Base",
+    "cls": "base",
+    "player": "Mathis Amougou",
+    "team": "RC Strasbourg Alsace",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "RC Strasbourg Alsace",
+      "Rookie Spot",
+      "Mathis Amougou"
+    ]
+  },
+  {
+    "id": "BC-178",
+    "set": "Base",
+    "cls": "base",
+    "player": "Mika Biereth",
+    "team": "AS Monaco",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "AS Monaco"
+    ]
+  },
+  {
+    "id": "BC-179",
+    "set": "Base",
+    "cls": "base",
+    "player": "Luis Díaz",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "BC-180",
+    "set": "Base",
+    "cls": "base",
+    "player": "Guela Doué",
+    "team": "RC Strasbourg Alsace",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "RC Strasbourg Alsace"
+    ]
+  },
+  {
+    "id": "BC-181",
+    "set": "Base",
+    "cls": "base",
+    "player": "Erling Haaland",
+    "team": "Manchester City",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "BC-182",
+    "set": "Base",
+    "cls": "base",
+    "player": "Harry Kane",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "BC-183",
+    "set": "Base",
+    "cls": "base",
+    "player": "Pau Cubarsí",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona",
+      "Rookie Spot",
+      "Pau Cubarsí"
+    ]
+  },
+  {
+    "id": "BC-184",
+    "set": "Base",
+    "cls": "base",
+    "player": "João Pedro",
+    "team": "Chelsea FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "BC-185",
+    "set": "Base",
+    "cls": "base",
+    "player": "Kang-in Lee",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-186",
+    "set": "Base",
+    "cls": "base",
+    "player": "Chris Wood",
+    "team": "Nottingham Forest",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Nottingham Forest"
+    ]
+  },
+  {
+    "id": "BC-187",
+    "set": "Base",
+    "cls": "base",
+    "player": "Lennart Karl",
+    "team": "FC Bayern München",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München",
+      "Rookie Spot",
+      "Lennart Karl"
+    ]
+  },
+  {
+    "id": "BC-188",
+    "set": "Base",
+    "cls": "base",
+    "player": "James Tavernier",
+    "team": "Rangers F.C.",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Rangers F.C."
+    ]
+  },
+  {
+    "id": "BC-189",
+    "set": "Base",
+    "cls": "base",
+    "player": "Conor Gallagher",
+    "team": "Atlético de Madrid",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Atlético de Madrid"
+    ]
+  },
+  {
+    "id": "BC-190",
+    "set": "Base",
+    "cls": "base",
+    "player": "Guille Fernández",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona",
+      "Rookie Spot",
+      "Guille Fernández"
+    ]
+  },
+  {
+    "id": "BC-191",
+    "set": "Base",
+    "cls": "base",
+    "player": "Rio Ngumoha",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC",
+      "Rookie Spot",
+      "Rio Ngumoha"
+    ]
+  },
+  {
+    "id": "BC-192",
+    "set": "Base",
+    "cls": "base",
+    "player": "Liam Delap",
+    "team": "Chelsea FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "BC-193",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ryan Gravenberch",
+    "team": "Liverpool FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "BC-194",
+    "set": "Base",
+    "cls": "base",
+    "player": "Eberechi Eze",
+    "team": "Arsenal FC",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "BC-195",
+    "set": "Base",
+    "cls": "base",
+    "player": "Oihan Sancet",
+    "team": "Athletic Club",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Athletic Club"
+    ]
+  },
+  {
+    "id": "BC-196",
+    "set": "Base",
+    "cls": "base",
+    "player": "Pedri",
+    "team": "FC Barcelona",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "BC-197",
+    "set": "Base",
+    "cls": "base",
+    "player": "Morgan Rogers",
+    "team": "Aston Villa",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Aston Villa"
+    ]
+  },
+  {
+    "id": "BC-198",
+    "set": "Base",
+    "cls": "base",
+    "player": "Désiré Doué",
+    "team": "Paris Saint-Germain",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "BC-199",
+    "set": "Base",
+    "cls": "base",
+    "player": "Morten Hjulmand",
+    "team": "Sporting Clube de Portugal",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Sporting Clube de Portugal"
+    ]
+  },
+  {
+    "id": "BC-200",
+    "set": "Base",
+    "cls": "base",
+    "player": "Kevin De Bruyne",
+    "team": "SSC Napoli",
+    "value": 40,
+    "type": "base",
+    "weight": 16,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SSC Napoli"
+    ]
+  },
+  {
+    "id": "BC-201",
+    "set": "Base",
+    "cls": "base",
+    "player": "Lionel Messi",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-202",
+    "set": "Base",
+    "cls": "base",
+    "player": "Cristiano Ronaldo",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-203",
+    "set": "Base",
+    "cls": "base",
+    "player": "Ronaldinho",
+    "team": "FC Barcelona",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "FC Barcelona",
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-204",
+    "set": "Base",
+    "cls": "base",
+    "player": "Pelé",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-205",
+    "set": "Base",
+    "cls": "base",
+    "player": "Zinedine Zidane",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-206",
+    "set": "Base",
+    "cls": "base",
+    "player": "Kaká",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-207",
+    "set": "Base",
+    "cls": "base",
+    "player": "Thierry Henry",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-208",
+    "set": "Base",
+    "cls": "base",
+    "player": "Didier Drogba",
+    "team": "Chelsea FC",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Chelsea FC",
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-209",
+    "set": "Base",
+    "cls": "base",
+    "player": "David Beckham",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-210",
+    "set": "Base",
+    "cls": "base",
+    "player": "Paolo Maldini",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "BC-211",
+    "set": "Base",
+    "cls": "base",
+    "player": "Andrés Iniesta",
+    "team": "Legend",
+    "value": 50,
+    "type": "base",
+    "weight": 10,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "FS-1",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Lamine Yamal",
+    "team": "FC Barcelona",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "FS-2",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Arda Güler",
+    "team": "Real Madrid C.F.",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "FS-3",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Ethan Nwaneri",
+    "team": "Arsenal FC",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "FS-4",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Max Dowman",
+    "team": "Arsenal FC",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC",
+      "Rookie Spot",
+      "Max Dowman"
+    ]
+  },
+  {
+    "id": "FS-5",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Estevão Willian",
+    "team": "Chelsea FC",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC",
+      "Rookie Spot",
+      "Estevão Willian"
+    ]
+  },
+  {
+    "id": "FS-6",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "João Neves",
+    "team": "Paris Saint-Germain",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "FS-7",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Kenan Yıldız",
+    "team": "Juventus",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "FS-8",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Désiré Doué",
+    "team": "Paris Saint-Germain",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "FS-9",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Jobe Bellingham",
+    "team": "Borussia Dortmund",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Borussia Dortmund",
+      "Rookie Spot",
+      "Jobe Bellingham"
+    ]
+  },
+  {
+    "id": "FS-10",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Nico O’Reilly",
+    "team": "Manchester City",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "FS-11",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Rayan Cherki",
+    "team": "Manchester City",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "FS-12",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Alejandro Balde",
+    "team": "FC Barcelona",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "FS-13",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Savinho",
+    "team": "Legend",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "FS-14",
+    "set": "Future Stars",
+    "cls": "future",
+    "player": "Rio Ngumoha",
+    "team": "Liverpool FC",
+    "value": 90,
+    "type": "insert",
+    "weight": 6,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC",
+      "Rookie Spot",
+      "Rio Ngumoha"
+    ]
+  },
+  {
+    "id": "KOE-1",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Kylian Mbappé",
+    "team": "Real Madrid C.F.",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "KOE-2",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Erling Haaland",
+    "team": "Manchester City",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "KOE-3",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Jude Bellingham",
+    "team": "Real Madrid C.F.",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "KOE-4",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Mohamed Salah",
+    "team": "Liverpool FC",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "KOE-5",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Vinícius Júnior",
+    "team": "Real Madrid C.F.",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "KOE-6",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Harry Kane",
+    "team": "FC Bayern München",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "KOE-7",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Lionel Messi",
+    "team": "Legend",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KOE-8",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Cristiano Ronaldo",
+    "team": "Legend",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KOE-9",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Zinedine Zidane",
+    "team": "Legend",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KOE-10",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Ronaldinho",
+    "team": "FC Barcelona",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "FC Barcelona",
+      "Legend"
+    ]
+  },
+  {
+    "id": "KOE-11",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Kaká",
+    "team": "Legend",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KOE-12",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Didier Drogba",
+    "team": "Chelsea FC",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Chelsea FC",
+      "Legend"
+    ]
+  },
+  {
+    "id": "KOE-13",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Paolo Maldini",
+    "team": "Legend",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KOE-14",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Rodri",
+    "team": "Manchester City",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "KOE-15",
+    "set": "Kings",
+    "cls": "kings",
+    "player": "Kevin De Bruyne",
+    "team": "SSC Napoli",
+    "value": 120,
+    "type": "insert",
+    "weight": 4,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "SSC Napoli"
+    ]
+  },
+  {
+    "id": "DEC-1",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Pedri",
+    "team": "FC Barcelona",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "DEC-2",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Martin Ødegaard",
+    "team": "Arsenal FC",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "DEC-3",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Bernardo Silva",
+    "team": "Manchester City",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "DEC-4",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Kaká",
+    "team": "Legend",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "DEC-5",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Andrés Iniesta",
+    "team": "Legend",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "DEC-6",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Jamal Musiala",
+    "team": "FC Bayern München",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "DEC-7",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Cole Palmer",
+    "team": "Chelsea FC",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "DEC-8",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Frenkie de Jong",
+    "team": "FC Barcelona",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "DEC-9",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Rayan Cherki",
+    "team": "Manchester City",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "DEC-10",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Vitinha",
+    "team": "Paris Saint-Germain",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "DEC-11",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Lamine Yamal",
+    "team": "FC Barcelona",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "DEC-12",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Phil Foden",
+    "team": "Manchester City",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "DEC-13",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Federico Valverde",
+    "team": "Real Madrid C.F.",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "DEC-14",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "Thierry Henry",
+    "team": "Legend",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "DEC-15",
+    "set": "Deco",
+    "cls": "deco",
+    "player": "David Beckham",
+    "team": "Legend",
+    "value": 300,
+    "type": "insert",
+    "weight": 2.5,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "FL-1",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Kylian Mbappé",
+    "team": "Real Madrid C.F.",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "FL-2",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Vinícius Júnior",
+    "team": "Real Madrid C.F.",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "FL-3",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Rafael Leão",
+    "team": "AC Milan",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "AC Milan"
+    ]
+  },
+  {
+    "id": "FL-4",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Max Dowman",
+    "team": "Arsenal FC",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC",
+      "Rookie Spot",
+      "Max Dowman"
+    ]
+  },
+  {
+    "id": "FL-5",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Mohamed Salah",
+    "team": "Liverpool FC",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "FL-6",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Khvicha Kvaratskhelia",
+    "team": "Paris Saint-Germain",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "FL-7",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Ousmane Dembélé",
+    "team": "Paris Saint-Germain",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "FL-8",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Rayan Cherki",
+    "team": "Manchester City",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "FL-9",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Cristiano Ronaldo",
+    "team": "Legend",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "FL-10",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Lamine Yamal",
+    "team": "FC Barcelona",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "FL-11",
+    "set": "Floodlights",
+    "cls": "floodlights",
+    "player": "Lennart Karl",
+    "team": "FC Bayern München",
+    "value": 7000,
+    "type": "ssp",
+    "weight": 0.35,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München",
+      "Rookie Spot",
+      "Lennart Karl"
+    ]
+  },
+  {
+    "id": "CB-1",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Erling Haaland",
+    "team": "Manchester City",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "CB-2",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Jude Bellingham",
+    "team": "Real Madrid C.F.",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "CB-3",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Ronaldinho",
+    "team": "FC Barcelona",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "FC Barcelona",
+      "Legend"
+    ]
+  },
+  {
+    "id": "CB-4",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Cole Palmer",
+    "team": "Chelsea FC",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "CB-5",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Jamal Musiala",
+    "team": "FC Bayern München",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "CB-6",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Rafael Leão",
+    "team": "AC Milan",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "AC Milan"
+    ]
+  },
+  {
+    "id": "CB-7",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Neymar",
+    "team": "Legend",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CB-8",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Michael Olise",
+    "team": "FC Bayern München",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "CB-9",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Estevão Willian",
+    "team": "Chelsea FC",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC",
+      "Rookie Spot",
+      "Estevão Willian"
+    ]
+  },
+  {
+    "id": "CB-10",
+    "set": "Colour Blast",
+    "cls": "colour",
+    "player": "Pelé",
+    "team": "Legend",
+    "value": 12000,
+    "type": "ssp",
+    "weight": 0.22,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "AN-1",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Lamine Yamal",
+    "team": "FC Barcelona",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "AN-2",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Estevão Willian",
+    "team": "Chelsea FC",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC",
+      "Rookie Spot",
+      "Estevão Willian"
+    ]
+  },
+  {
+    "id": "AN-3",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Max Dowman",
+    "team": "Arsenal FC",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC",
+      "Rookie Spot",
+      "Max Dowman"
+    ]
+  },
+  {
+    "id": "AN-4",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Rio Ngumoha",
+    "team": "Liverpool FC",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC",
+      "Rookie Spot",
+      "Rio Ngumoha"
+    ]
+  },
+  {
+    "id": "AN-5",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Khvicha Kvaratskhelia",
+    "team": "Paris Saint-Germain",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "AN-6",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Ronaldinho",
+    "team": "FC Barcelona",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "FC Barcelona",
+      "Legend"
+    ]
+  },
+  {
+    "id": "AN-7",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Didier Drogba",
+    "team": "Chelsea FC",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Chelsea FC",
+      "Legend"
+    ]
+  },
+  {
+    "id": "AN-8",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Thierry Henry",
+    "team": "Legend",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "AN-9",
+    "set": "アニメ",
+    "cls": "anime",
+    "player": "Lionel Messi",
+    "team": "Legend",
+    "value": 15000,
+    "type": "ssp",
+    "weight": 0.18,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KA-1",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Kylian Mbappé",
+    "team": "Real Madrid C.F.",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "KA-2",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Erling Haaland",
+    "team": "Manchester City",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "KA-3",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Jude Bellingham",
+    "team": "Real Madrid C.F.",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "KA-4",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Lionel Messi",
+    "team": "Legend",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KA-5",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Cristiano Ronaldo",
+    "team": "Legend",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KA-6",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Lamine Yamal",
+    "team": "FC Barcelona",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "KA-7",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Ronaldinho",
+    "team": "FC Barcelona",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "FC Barcelona",
+      "Legend"
+    ]
+  },
+  {
+    "id": "KA-8",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Zinedine Zidane",
+    "team": "Legend",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "KA-9",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Cole Palmer",
+    "team": "Chelsea FC",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "KA-10",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Vinícius Júnior",
+    "team": "Real Madrid C.F.",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "KA-11",
+    "set": "Kaleidoscope",
+    "cls": "kaleidoscope",
+    "player": "Lennart Karl",
+    "team": "FC Bayern München",
+    "value": 20000,
+    "type": "ssp",
+    "weight": 0.12,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München",
+      "Rookie Spot",
+      "Lennart Karl"
+    ]
+  },
+  {
+    "id": "CA-1",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Kylian Mbappé",
+    "team": "Real Madrid C.F.",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "CA-2",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Erling Haaland",
+    "team": "Manchester City",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "CA-3",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Jude Bellingham",
+    "team": "Real Madrid C.F.",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "CA-4",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Vinícius Júnior",
+    "team": "Real Madrid C.F.",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "CA-5",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Lamine Yamal",
+    "team": "FC Barcelona",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "CA-6",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Cole Palmer",
+    "team": "Chelsea FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC"
+    ]
+  },
+  {
+    "id": "CA-7",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Mohamed Salah",
+    "team": "Liverpool FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC"
+    ]
+  },
+  {
+    "id": "CA-8",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Jamal Musiala",
+    "team": "FC Bayern München",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München"
+    ]
+  },
+  {
+    "id": "CA-9",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Pedri",
+    "team": "FC Barcelona",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "FC Barcelona"
+    ]
+  },
+  {
+    "id": "CA-10",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Bukayo Saka",
+    "team": "Arsenal FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "CA-11",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Arda Güler",
+    "team": "Real Madrid C.F.",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Real Madrid C.F."
+    ]
+  },
+  {
+    "id": "CA-12",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Ethan Nwaneri",
+    "team": "Arsenal FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC"
+    ]
+  },
+  {
+    "id": "CA-13",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Max Dowman",
+    "team": "Arsenal FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Arsenal FC",
+      "Rookie Spot",
+      "Max Dowman"
+    ]
+  },
+  {
+    "id": "CA-14",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Rio Ngumoha",
+    "team": "Liverpool FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Liverpool FC",
+      "Rookie Spot",
+      "Rio Ngumoha"
+    ]
+  },
+  {
+    "id": "CA-15",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Estevão Willian",
+    "team": "Chelsea FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "Chelsea FC",
+      "Rookie Spot",
+      "Estevão Willian"
+    ]
+  },
+  {
+    "id": "CA-16",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Lennart Karl",
+    "team": "FC Bayern München",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": true,
+    "legend": false,
+    "slotTeams": [
+      "FC Bayern München",
+      "Rookie Spot",
+      "Lennart Karl"
+    ]
+  },
+  {
+    "id": "CA-17",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Rayan Cherki",
+    "team": "Manchester City",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Manchester City"
+    ]
+  },
+  {
+    "id": "CA-18",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "João Neves",
+    "team": "Paris Saint-Germain",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "CA-19",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Kenan Yıldız",
+    "team": "Juventus",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Juventus"
+    ]
+  },
+  {
+    "id": "CA-20",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Désiré Doué",
+    "team": "Paris Saint-Germain",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": false,
+    "slotTeams": [
+      "Paris Saint-Germain"
+    ]
+  },
+  {
+    "id": "CA-21",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Lionel Messi",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-22",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Cristiano Ronaldo",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-23",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Ronaldinho",
+    "team": "FC Barcelona",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "FC Barcelona",
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-24",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Pelé",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-25",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Zinedine Zidane",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-26",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Kaká",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-27",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Thierry Henry",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-28",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Didier Drogba",
+    "team": "Chelsea FC",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Chelsea FC",
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-29",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "David Beckham",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  },
+  {
+    "id": "CA-30",
+    "set": "Chrome Auto",
+    "cls": "auto",
+    "player": "Paolo Maldini",
+    "team": "Legend",
+    "value": 3000,
+    "type": "auto",
+    "weight": 0.45,
+    "rookie": false,
+    "legend": true,
+    "slotTeams": [
+      "Legend"
+    ]
+  }
+];
+const checklist = pool.map(c=>({...c}));
+let coins = 15000;
+let collection = [];
+let currentCards = [];
+let boxPacks = [];
+let sessionCards = [];
+let currentPackNumber = 0;
+let revealIndex = 0;
+let binderPage = 0;
+let exchangeRewardMode = false;
+
+let stats = {
+packsOpened:0,
+duplicatesSold:0,
+breaksJoined:0,
+breakSpotsBought:0,
+breakAutos:0,
+breakSSPs:0,
+breakNumbered:0,
+breakCardsWon:0,
+breakTickets:0,
+claimed:[]
+};
+
+const dailyObjectives = [
+{id:"dailyOpen10",label:"Open 10 packs",target:10,reward:1200,get:()=>stats.packsOpened},
+{id:"dailyInsert3",label:"Pull 3 inserts",target:3,reward:900,get:()=>collection.filter(c=>c.type==='insert').length},
+{id:"dailyUnique5",label:"Pull 5 unique cards",target:5,reward:1000,get:()=>new Set(collection.map(c=>c.id)).size},
+{id:"dailySell5",label:"Sell 5 duplicates",target:5,reward:1000,get:()=>stats.duplicatesSold || 0}
+];
+
+const packMilestones = Array.from({length:20},(_,i)=>{
+ const packs=(i+1)*10;
+ return {id:"packs"+packs,label:"Open "+packs+" packs",target:packs,reward:500+(i+1)*250,get:()=>stats.packsOpened};
+});
+
+const collectionMilestones = [
+{id:"firstAuto",label:"Pull your first auto",target:1,reward:5000,get:()=>collection.filter(c=>c.type==='auto').length},
+{id:"firstSSP",label:"Pull your first SSP",target:1,reward:12000,get:()=>collection.filter(c=>c.type==='ssp').length},
+{id:"unique25",label:"Own 25 unique cards",target:25,reward:2500,get:()=>new Set(collection.map(c=>c.id)).size},
+{id:"unique50",label:"Own 50 unique cards",target:50,reward:6000,get:()=>new Set(collection.map(c=>c.id)).size},
+{id:"unique100",label:"Own 100 unique cards",target:100,reward:15000,get:()=>new Set(collection.map(c=>c.id)).size},
+{id:"baseComplete",label:"Complete the Base Set",target:checklist.filter(c=>c.set==='Base').length,reward:30000,get:()=>new Set(collection.filter(c=>c.set==='Base').map(c=>c.id)).size},
+{id:"rookiesComplete",label:"Complete all Rookie Cards",target:rookieChecklist().length,reward:20000,get:()=>new Set(collection.filter(c=>isRookie(c)).map(c=>c.id)).size},
+{id:"firstBreak",label:"Join your first break",target:1,reward:1500,ticketReward:1,get:()=>stats.breaksJoined || 0},
+{id:"breaks5",label:"Join 5 breaks",target:5,reward:3500,ticketReward:1,get:()=>stats.breaksJoined || 0},
+{id:"breakSpots10",label:"Buy 10 break spots",target:10,reward:5000,ticketReward:1,get:()=>stats.breakSpotsBought || 0},
+{id:"breakCards25",label:"Win 25 cards from breaks",target:25,reward:5000,get:()=>stats.breakCardsWon || 0},
+{id:"breakAuto1",label:"Hit an auto in a break",target:1,reward:6000,get:()=>stats.breakAutos || 0},
+{id:"breakSSP1",label:"Hit an SSP in a break",target:1,reward:9000,get:()=>stats.breakSSPs || 0},
+{id:"breakNumbered10",label:"Hit 10 numbered cards in breaks",target:10,reward:8000,get:()=>stats.breakNumbered || 0}
+];
+
+function countOwnedSet(setName){
+ return new Set(collection.filter(c=>c.set===setName).map(c=>c.id)).size;
+}
+function countChecklistSet(setName){
+ return checklist.filter(c=>c.set===setName).length;
+}
+
+const setRewards = [
+{id:"fsComplete",label:"Complete Future Stars",set:"Future Stars",reward:8000},
+{id:"koeComplete",label:"Complete Kings of Europe",set:"Kings",reward:9000},
+{id:"decoComplete",label:"Complete Deco",set:"Deco",reward:10000},
+{id:"flComplete",label:"Complete Floodlights",set:"Floodlights",reward:18000},
+{id:"cbComplete",label:"Complete Colour Blast",set:"Colour Blast",reward:22000},
+{id:"animeComplete",label:"Complete Anime",set:"アニメ",reward:22000},
+{id:"kaComplete",label:"Complete Kaleidoscope",set:"Kaleidoscope",reward:30000},
+{id:"autoComplete",label:"Complete Chrome Autos",set:"Chrome Auto",reward:35000}
+];
+
+function baseTeamRewards(){
+ const teams=[...new Set(checklist.filter(c=>c.set==='Base').map(c=>c.team).filter(Boolean))];
+ return teams.map(team=>({
+   id:"team_"+team.replace(/[^a-z0-9]/gi,''),
+   label:"Complete "+team+" Base",
+   team,
+   reward:3000
+ }));
+}
+
+const milestones = [...packMilestones,...collectionMilestones];
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  syncStats();
+  if(id==='binder') renderBinder();
+  if(id==='breaks') renderBreaks();
+  if(id==='objectives') renderObjectives();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function go(id){
+  showPage(id);
+}
+
+function toast(msg){
+ const t=document.getElementById('toast');
+ t.innerText=msg;
+ t.style.display='block';
+ clearTimeout(window.toastTimer);
+ window.toastTimer=setTimeout(()=>t.style.display='none',2500);
+}
+
+
+function maybeAwardObjectiveTicket(obj){
+  if(obj && obj.ticketReward){
+    stats.breakTickets = (stats.breakTickets || 0) + obj.ticketReward;
+    return obj.ticketReward;
+  }
+  return 0;
+}
+
+function claimObjective(id,reward){
+ if(stats.claimed.includes(id)) return;
+ const allObjectives = [...dailyObjectives,...packMilestones,...collectionMilestones];
+ const obj = allObjectives.find(o=>o.id===id);
+ const ticketsClaimed = obj ? maybeAwardObjectiveTicket(obj) : 0;
+ stats.claimed.push(id);
+ coins += reward;
+ syncStats();
+ renderObjectives();
+
+ let msg = 'Claimed '+reward.toLocaleString()+' coins';
+ if(ticketsClaimed){
+   msg += ' + '+ticketsClaimed+' Break Ticket'+(ticketsClaimed>1?'s':'');
+ }
+ toast(msg);
+}
+
+function renderObjectiveList(arr,containerId){
+ const wrap=document.getElementById(containerId);
+ if(!wrap) return;
+
+ wrap.innerHTML=arr.map(o=>{
+   const progress=Math.min(o.target,o.get());
+   const pct=Math.round((progress/o.target)*100);
+   const complete=progress>=o.target;
+   const claimed=stats.claimed.includes(o.id);
+
+   return `
+   <div class="objectiveCard ${claimed ? 'claimed':''}">
+     <div class="objectiveTop">
+       <div>
+         <strong>${o.label}</strong><br>
+         ${progress}/${o.target}
+         <div class="rewardLine">Reward: ${o.reward.toLocaleString()} coins${o.ticketReward ? ` + ${o.ticketReward} Break Ticket${o.ticketReward>1?'s':''}` : ''}</div>
+       </div>
+       <div>
+         ${complete && !claimed
+           ? `<button onclick="claimObjective('${o.id}',${o.reward})">Claim</button>`
+           : claimed ? 'Claimed' : ''}
+       </div>
+     </div>
+
+     <div class="progressBar">
+       <div class="progressFill" style="width:${pct}%"></div>
+     </div>
+   </div>
+   `;
+ }).join('');
+}
+
+
+function hasClaimableObjectives(){
+ const allObjectives = [...dailyObjectives,...packMilestones,...collectionMilestones];
+
+ const setItems = setRewards.map(r=>({
+   id:r.id,
+   label:r.label,
+   target:countChecklistSet(r.set),
+   reward:r.reward,
+   get:()=>countOwnedSet(r.set)
+ }));
+
+ const teamItems = baseTeamRewards().map(r=>{
+   const target = checklist.filter(c=>c.set==='Base' && c.team===r.team).length;
+   return {
+     id:r.id,
+     label:r.label,
+     target,
+     reward:r.reward,
+     get:()=>new Set(collection.filter(c=>c.set==='Base' && c.team===r.team).map(c=>c.id)).size
+   };
+ });
+
+ return [...allObjectives,...setItems,...teamItems].some(o=>!stats.claimed.includes(o.id) && o.get()>=o.target);
+}
+
+function updateObjectiveDot(){
+ const dot=document.getElementById('objectivesNotifyDot');
+ if(!dot) return;
+ if(hasClaimableObjectives()) dot.classList.add('show');
+ else dot.classList.remove('show');
+}
+
+function renderObjectives(){
+ renderObjectiveList(dailyObjectives,'dailyObjectives');
+ renderObjectiveList(packMilestones,'packMilestoneObjectives');
+ renderObjectiveList(collectionMilestones,'milestoneObjectives');
+
+ const setItems = setRewards.map(r=>({
+   id:r.id,
+   label:r.label,
+   target:countChecklistSet(r.set),
+   reward:r.reward,
+   get:()=>countOwnedSet(r.set)
+ }));
+ renderObjectiveList(setItems,'setRewardObjectives');
+
+ const teamItems = baseTeamRewards().map(r=>{
+   const target = checklist.filter(c=>c.set==='Base' && c.team===r.team).length;
+   return {
+     id:r.id,
+     label:r.label,
+     target,
+     reward:r.reward,
+     get:()=>new Set(collection.filter(c=>c.set==='Base' && c.team===r.team).map(c=>c.id)).size
+   };
+ });
+ renderObjectiveList(teamItems,'teamRewardObjectives');
+ updateObjectiveDot();
+}
+
+
+let activeExchange = null;
+let selectedExchange = [];
+
+function duplicateCardsByType(type){
+ const counts={};
+ collection.forEach((c,idx)=>{
+   if(c.type!==type) return;
+   if(!counts[c.id]) counts[c.id]=[];
+   counts[c.id].push({card:c,index:idx});
+ });
+
+ let dupes=[];
+ Object.values(counts).forEach(arr=>{
+   if(arr.length>1){
+     dupes.push(...arr.slice(1));
+   }
+ });
+ return dupes;
+}
+
+function startExchange(type,needed,reward){
+ activeExchange={type,needed,reward};
+ selectedExchange=[];
+ const eligible=duplicateCardsByType(type);
+ const box=document.getElementById('exchangeSelector');
+
+ if(eligible.length<needed){
+   box.style.display='block';
+   box.innerHTML=`<h2>Not enough duplicates</h2><p class="smallText">You need ${needed} duplicate ${type} cards. You currently have ${eligible.length} eligible duplicates.</p>`;
+   return;
+ }
+
+ box.style.display='block';
+ box.innerHTML=`
+ <h2>Select ${needed} duplicate cards</h2>
+ <p class="smallText">Selected: <span id="selectedCount">0</span>/${needed}</p>
+ <div class="exchangeList">
+ ${eligible.map((item,i)=>`
+   <div class="exchangePick" id="pick_${i}" onclick="toggleExchangePick(${i})">
+     <strong>${item.card.player}</strong><br>
+     <span>${item.card.set}</span><br>
+     <span>${item.card.value.toLocaleString()}</span>
+   </div>
+ `).join('')}
+ </div>
+ <br>
+ <button onclick="confirmExchange()">Confirm Exchange</button>
+ `;
+ activeExchange.eligible=eligible;
+}
+
+function toggleExchangePick(i){
+ if(!activeExchange) return;
+ const needed=activeExchange.needed;
+ const pos=selectedExchange.indexOf(i);
+ if(pos>=0) selectedExchange.splice(pos,1);
+ else {
+   if(selectedExchange.length>=needed) return;
+   selectedExchange.push(i);
+ }
+ document.getElementById('pick_'+i).classList.toggle('selected');
+ document.getElementById('selectedCount').innerText=selectedExchange.length;
+}
+
+
+function launchExchangePack(rewardCard, label){
+ collection.push({...rewardCard,source:'pack'});
+ currentCards = [rewardCard];
+ sessionCards = [];
+ boxPacks = [];
+ currentPackNumber = 1;
+ revealIndex = 0;
+ exchangeRewardMode = true;
+
+ go('store');
+
+ const packEl = document.getElementById('pack');
+ const stackEl = document.getElementById('stack');
+ const summaryEl = document.getElementById('summary');
+
+ summaryEl.classList.remove('show');
+ summaryEl.innerHTML = '';
+ stackEl.style.display = 'block';
+
+ packEl.className = 'pack hobby';
+ packEl.classList.remove('hidden');
+ document.getElementById('packText').innerHTML = label;
+
+ setTimeout(()=>{
+   document.getElementById('stage').scrollIntoView({behavior:'smooth',block:'center'});
+ },150);
+}
+
+function confirmExchange(){
+ if(!activeExchange || selectedExchange.length<activeExchange.needed){
+   alert('Select the required number of duplicate cards.');
+   return;
+ }
+
+ const selectedIndexes = selectedExchange.map(i=>activeExchange.eligible[i].index).sort((a,b)=>b-a);
+ selectedIndexes.forEach(idx=>collection.splice(idx,1));
+
+ if(activeExchange.reward==='insert'){
+   const insertPool=pool.filter(c=>c.type==='insert');
+   const rewardCard = {...insertPool[Math.floor(Math.random()*insertPool.length)]};
+   launchExchangePack(rewardCard,'EXCHANGE<br>PACK');
+ }
+
+ if(activeExchange.reward==='coins'){
+   coins += 1200;
+   toast('Exchange complete: 1,200 coins added');
+ }
+
+ if(activeExchange.reward==='auto'){
+   const autoPool=pool.filter(c=>c.type==='auto');
+   const rewardCard = {...autoPool[Math.floor(Math.random()*autoPool.length)]};
+   launchExchangePack(rewardCard,'PREMIUM<br>PACK');
+ }
+
+ activeExchange=null;
+ selectedExchange=[];
+ document.getElementById('exchangeSelector').style.display='none';
+ syncStats();
+ renderObjectives();
+ if(typeof renderBinder === 'function') renderBinder();
+}
+
+function syncStats(){
+ const coinText = coins.toLocaleString();
+ ['coinsHome','coinsStore','coinsBreaks','coinsStream'].forEach(id=>{
+   const el=document.getElementById(id);
+   if(el) el.innerText=coinText;
+ });
+
+ const total=collection.reduce((s,c)=>s+c.value,0);
+ const vh=document.getElementById('valueHome');
+ if(vh) vh.textContent=total.toLocaleString();
+
+ const hp=document.getElementById('homeProgress');
+ if(hp) hp.textContent=Math.round((new Set(collection.map(c=>c.id)).size/checklist.length)*100)+'%';
+ const ticketText = (stats.breakTickets || 0).toLocaleString();
+ ['breakTicketsCount','breakTicketsStream'].forEach(id=>{
+   const el=document.getElementById(id);
+   if(el) el.innerText=ticketText;
+ });
+ if(typeof updateObjectiveDot === 'function') updateObjectiveDot();
+}
+function initials(name){return name.split(' ').map(x=>x[0]).join('').slice(0,3).toUpperCase();}
+function random(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function drawUnique(list, used){let c, tries=0; do{c=random(list); tries++;}while(used.has(c.id)&&tries<50); used.add(c.id); return {...c};}
+function buildSingle(type){
+  const used=new Set(), cards=[];
+  const bases=pool.filter(c=>c.type==='base'), inserts=pool.filter(c=>c.type==='insert'), ssps=pool.filter(c=>c.type==='ssp'), autos=pool.filter(c=>c.type==='auto');
+  if(type==='standard'){
+    for(let i=0;i<4;i++) cards.push(drawUnique(bases,used));
+    const r=Math.random();
+    if(r<.02) cards.push(drawUnique(ssps,used));
+    else if(r<.30) cards.push(drawUnique(inserts,used));
+    else cards.push(drawUnique(bases,used));
+  } else {
+    for(let i=0;i<3;i++) cards.push(drawUnique(bases,used));
+    cards.push(Math.random()<.75?drawUnique(inserts,used):drawUnique(bases,used));
+    const r=Math.random();
+    if(r<.05) cards.push(drawUnique(autos,used));
+    else if(r<.12) cards.push(drawUnique(ssps,used));
+    else if(r<.62) cards.push(drawUnique(inserts,used));
+    else cards.push(drawUnique(bases,used));
+  }
+  return cards;
+}
+function buildProduct(type){return buildSingle(type);}
+
+function addGuaranteedNumbered(card){
+ card.parallel = "Numbered";
+ card.value = Math.max(card.value * 4, 250);
+ return card;
+}
+
+
+function buildHobbyBoxPacks(){
+ const packs = [];
+ for(let i=0;i<10;i++){
+   packs.push(buildSingle('hobby'));
+ }
+
+ function randInt(max){ return Math.floor(Math.random()*max); }
+
+ function uniquePositions(count, usedPositions=[]){
+   const pos=[];
+   while(pos.length<count){
+     const p=[randInt(10),3+randInt(2)];
+     const key=p[0]+'-'+p[1];
+     if(usedPositions.includes(key)) continue;
+     if(pos.some(x=>x[0]===p[0]&&x[1]===p[1])) continue;
+     pos.push(p);
+   }
+   return pos;
+ }
+
+ // Remove any random SSPs created inside individual packs.
+ const basePool = pool.filter(c=>c.type==='base');
+ const insertPool = pool.filter(c=>c.type==='insert');
+ for(let pi=0;pi<packs.length;pi++){
+   for(let ci=0;ci<packs[pi].length;ci++){
+     if(packs[pi][ci].type==='ssp'){
+       packs[pi][ci] = Math.random()<0.75
+         ? {...basePool[Math.floor(Math.random()*basePool.length)]}
+         : {...insertPool[Math.floor(Math.random()*insertPool.length)]};
+     }
+   }
+ }
+
+ const used=[];
+
+ // 1 guaranteed auto
+ const autoPool = pool.filter(c=>c.type==='auto');
+ const autoPack = randInt(10);
+ const autoSlot = 4;
+ packs[autoPack][autoSlot] = {...autoPool[Math.floor(Math.random()*autoPool.length)]};
+ used.push(autoPack+'-'+autoSlot);
+
+ // 4 guaranteed numbered cards
+ const eligible = pool.filter(c=>c.type==='base' || c.type==='insert');
+ const numberedPositions = uniquePositions(4, used);
+ numberedPositions.forEach(([packIndex,slot])=>{
+   packs[packIndex][slot] = addGuaranteedNumbered({...eligible[Math.floor(Math.random()*eligible.length)]});
+   used.push(packIndex+'-'+slot);
+ });
+
+ // 40% chance of exactly 1 SSP max
+ if(Math.random()<0.40){
+   const sspPool = pool.filter(c=>c.type==='ssp');
+   const [[sspPack,sspSlot]] = uniquePositions(1, used);
+   packs[sspPack][sspSlot] = {...sspPool[Math.floor(Math.random()*sspPool.length)]};
+ }
+
+ return packs;
+}
+
+function buy(type){
+  const price={standard:500,hobby:1200,box:10000}[type];
+  if(coins<price){alert('Not enough coins');return;}
+  if(!confirm('Open this product?'))return;
+
+  coins-=price;
+  stats.packsOpened += type==='box' ? 10 : 1;
+  sessionCards = [];
+  currentPackNumber = 0;
+
+  if(type==='box'){
+    boxPacks = buildHobbyBoxPacks();
+    currentCards = boxPacks.shift();
+    currentPackNumber = 1;
+  }else{
+    boxPacks = [];
+    currentCards = buildProduct(type);
+    currentPackNumber = 1;
+  }
+
+  revealIndex=0;
+  syncStats();
+  renderObjectives();
+
+  pack.className='pack '+(type==='hobby'?'hobby':type==='box'?'box':'');
+  pack.classList.remove('hidden');
+  packText.innerHTML=type==='box'?'HOBBY BOX<br>PACK 1/10':type==='hobby'?'HOBBY<br>PACK':'STANDARD<br>PACK';
+  summary.classList.remove('show');
+  summary.innerHTML='';
+  stack.style.display='block';
+
+  setTimeout(()=>stage.scrollIntoView({behavior:'smooth',block:'center'}),100);
+}
+
+pack.onclick=()=>{pack.classList.add('hidden'); revealCard();};
+stack.onclick=(e)=>{if(e.target.id==='hit'||e.target.closest('#hit')){hit.classList.remove('show');hit.classList.remove('hitSlam');hit.innerHTML='HIT';return;} revealCard();};
+function revealCard(){
+  document.querySelectorAll('.card,.value').forEach(e=>e.remove());
+
+  if(revealIndex>=currentCards.length){
+    finishOpening();
+    return;
+  }
+
+  const c=currentCards[revealIndex];
+  const card=document.createElement('div');
+  card.className='card active cardRevealFlash '+c.cls;
+  card.innerHTML=`<div class="card-inner"><div class="toprow"><span>UCL</span><span>TOPPS CHROME</span></div><div class="player">${initials(c.player)}</div><div class="bottom"><strong>${c.player}</strong><div>${c.set}${c.parallel ? ' · '+c.parallel : ''}</div></div></div>`;
+  stack.appendChild(card);
+
+  if(c.type==='ssp'||c.type==='auto'||c.parallel) hit.classList.add('show'); hit.classList.add('hitSlam'); hit.innerHTML = '<div>BIG HIT</div><div class="bigHitText">Tap to reveal</div>';
+
+  if(!exchangeRewardMode){ collection.push({...c,source:'pack'}); }
+  sessionCards.push(c);
+  revealIndex++;
+  syncStats();
+  renderObjectives();
+}
+
+function finishOpening(){
+  document.querySelectorAll('.card,.value').forEach(e=>e.remove());
+  stack.style.display='none';
+  pack.classList.add('hidden');
+
+  // If this is a hobby box and packs remain, show a mini pack summary then prepare next pack.
+  if(boxPacks.length>0){
+    summary.innerHTML=`<div class="packCompleteCard"><div><h2>Pack ${currentPackNumber} Complete</h2><p>Next pack is ready.</p><button onclick="startNextBoxPack()">Open Pack ${currentPackNumber+1}/10</button></div></div>`;
+    summary.classList.add('show');
+    return;
+  }
+
+  const total=sessionCards.reduce((s,c)=>s+c.value,0);
+  const best=[...sessionCards].sort((a,b)=>b.value-a.value)[0];
+  const hits=sessionCards.filter(c=>c.type==='ssp'||c.type==='auto'||c.parallel);
+  const isBoxSummary = sessionCards.length > 5;
+
+  const displayCards = isBoxSummary
+    ? hits.sort((a,b)=>b.value-a.value).slice(0,18)
+    : sessionCards;
+
+  summary.innerHTML=`<h2>${isBoxSummary ? 'Hobby Box Summary' : 'Opening Summary'}</h2>
+  <div class="summaryGrid">
+    <div class="sumBox"><strong>${sessionCards.length}</strong>Cards</div>
+    <div class="sumBox"><strong>${total.toLocaleString()}</strong>Value</div>
+    <div class="sumBox"><strong>${hits.length}</strong>Hits</div>
+    <div class="sumBox"><strong>${best.player}</strong>Best Pull</div>
+  </div>
+  ${isBoxSummary ? '<h3>Best Hits</h3>' : ''}
+  <div class="pullGrid">
+    ${displayCards.length ? displayCards.map(c=>`<div class="pull"><div class="pullCard ${c.cls}">${initials(c.player)}</div><div class="pullValue">${c.value.toLocaleString()}</div><div class="pullValue">${c.set}${c.parallel ? ' · '+c.parallel : ''}</div></div>`).join('') : '<p>No major hits in this box.</p>'}
+  </div>
+  <br><button id="closeSummaryBtn" type="button">Close Summary</button>`;
+  summary.classList.add('show');
+  exchangeRewardMode = false;
+}
+
+function startNextBoxPack(){
+  currentCards = boxPacks.shift();
+  currentPackNumber++;
+  revealIndex = 0;
+  summary.classList.remove('show');
+  summary.innerHTML = '';
+  stack.style.display = 'block';
+  pack.className = 'pack box';
+  pack.classList.remove('hidden');
+  packText.innerHTML = `HOBBY BOX<br>PACK ${currentPackNumber}/10`;
+  setTimeout(()=>stage.scrollIntoView({behavior:'smooth',block:'center'}),100);
+}
+
+function groups(){const g={};collection.forEach(c=>{if(!g[c.id])g[c.id]={...c,count:0};g[c.id].count++;});return Object.values(g);}
+function filteredChecklist(){
+  const q=(search.value||'').toLowerCase();
+  const f=filter.value;
+  return checklist.filter(c=>{
+    const hay=(c.id+' '+c.player+' '+c.set+' '+(c.team||'')).toLowerCase();
+    return hay.includes(q) && (f==='all' || c.set===f);
+  }).sort((a,b)=>{
+    const setOrder = {
+      "Base": 1,
+      "Future Stars": 2,
+      "Kings": 3,
+      "Deco": 4,
+      "Floodlights": 5,
+      "Colour Blast": 6,
+      "アニメ": 7,
+      "Kaleidoscope": 8,
+      "Chrome Auto": 9
+    };
+    const getNum = id => {
+      const m = id.match(/(\d+)/);
+      return m ? parseInt(m[1]) : 9999;
+    };
+    const orderA = setOrder[a.set] || 99;
+    const orderB = setOrder[b.set] || 99;
+    if(orderA !== orderB) return orderA - orderB;
+    return getNum(a.id) - getNum(b.id);
+  });
+}
+
+
+function selectedSourceFilter(){
+ const el=document.getElementById('sourceFilter');
+ return el ? el.value : 'all';
+}
+
+function collectionForSource(){
+ const src=selectedSourceFilter();
+ if(src==='all') return collection;
+ return collection.filter(c=>c.source===src);
+}
+
+function sourceOwnedForCard(card){
+ const src=selectedSourceFilter();
+ const owned=collection.filter(c=>c.id===card.id);
+ if(src==='all') return owned;
+ return owned.filter(c=>c.source===src);
+}
+
+function renderBinder(){
+  const sourceCollection = collectionForSource();
+  const owned=groups();
+  const unique=new Set(collection.map(c=>c.id)).size, val=collection.reduce((s,c)=>s+c.value,0);
+  ownedStat.textContent=collection.length;
+  uniqueStat.textContent=unique;
+  progressStat.textContent=Math.round(unique/checklist.length*100)+'%';
+  valueStat.textContent=val.toLocaleString();
+
+  let items=filteredChecklist();
+
+  if(selectedSourceFilter()!=='all'){
+    items = items.filter(card=>sourceOwnedForCard(card).length>0);
+  }
+
+  const setProgressEl=document.getElementById('setProgressText');
+  if(setProgressEl){
+    const filteredTotal=items.length;
+    const filteredOwned=items.filter(card=>sourceOwnedForCard(card).length>0).length;
+    const sourceLabel = selectedSourceFilter()==='break' ? 'Won in Breaks' : selectedSourceFilter()==='pack' ? 'Pack Pulled' : 'All Sources';
+    setProgressEl.textContent=`${filter.value==='all'?'All Cards':filter.options[filter.selectedIndex].text} · ${sourceLabel}: ${filteredOwned}/${filteredTotal}`;
+  }
+
+  const perPage=9;
+  const maxPage=Math.max(0,Math.ceil(items.length/perPage)-1);
+  if(binderPage>maxPage) binderPage=maxPage;
+
+  const pageItems=items.slice(binderPage*perPage,binderPage*perPage+perPage);
+
+  binderGrid.innerHTML=pageItems.map(c=>{
+    const sourceOwned = sourceOwnedForCard(c);
+    const anyOwned = collection.filter(x=>x.id===c.id);
+    const o = sourceOwned[0] || anyOwned[0];
+    const count = sourceOwned.length || anyOwned.length;
+    const hasBreakWin = anyOwned.some(x=>x.source==='break');
+
+    return o
+      ? `<div class="slot"><div class="mini ${o.cls}">${initials(o.player)}${hasBreakWin ? '<div class="breakWinBadge">BREAK WIN</div>' : ''}</div><div class="cardNumber">${o.id}</div><div class="owned">x${count}</div></div>`
+      : `<div class="slot empty">${c.id}<br>MISSING</div>`;
+  }).join('');
+
+  for(let i=pageItems.length;i<perPage;i++){
+    binderGrid.innerHTML += `<div class="slot empty">EMPTY</div>`;
+  }
+
+  if(document.getElementById('pageText')){
+    document.getElementById('pageText').textContent = `Page ${binderPage+1} / ${maxPage+1}`;
+  }
+}
+
+function nextPage(){
+  let items=filteredChecklist();
+  if(selectedSourceFilter()!=='all') items=items.filter(card=>sourceOwnedForCard(card).length>0);
+  const maxPage=Math.max(0,Math.ceil(items.length/9)-1);
+  binderPage=Math.min(maxPage,binderPage+1);
+  renderBinder();
+  document.querySelector('.binderBook')?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function prevPage(){
+  binderPage=Math.max(0,binderPage-1);
+  renderBinder();
+  document.querySelector('.binderBook')?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function sellDuplicates(){const seen=new Set();let keep=[],earn=0;collection.forEach(c=>{if(seen.has(c.id))earn+=c.value;else{seen.add(c.id);keep.push(c);}});const soldCount = collection.length - keep.length; collection=keep; coins+=earn; stats.duplicatesSold += soldCount; syncStats(); renderObjectives(); renderBinder(); alert('Sold duplicates for '+earn.toLocaleString());}
+
+function closeSummary(){
+  const summaryEl = document.getElementById('summary');
+  const packEl = document.getElementById('pack');
+  const stackEl = document.getElementById('stack');
+  const hitEl = document.getElementById('hit');
+
+  if(summaryEl){
+    summaryEl.classList.remove('show');
+    summaryEl.innerHTML = '';
+    summaryEl.style.display = 'none';
+    summaryEl.style.pointerEvents = 'none';
+  }
+
+  if(packEl) packEl.classList.add('hidden');
+  if(stackEl) stackEl.style.display = 'none';
+  if(hitEl) hitEl.classList.remove('show');
+
+  boxPacks = [];
+  currentCards = [];
+  sessionCards = [];
+  revealIndex = 0;
+  currentPackNumber = 0;
+  exchangeRewardMode = false;
+
+  setTimeout(function(){
+    if(summaryEl){
+      summaryEl.style.display = '';
+      summaryEl.style.pointerEvents = '';
+    }
+    const storeLayout = document.querySelector('#store .layout');
+    if(storeLayout){
+      storeLayout.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  }, 100);
+}
+
+
+function isRookie(card){
+  const rookieNames=['Jobe Bellingham','Jamaldeen Jimoh-Aloba','Axel Tapé','Richard Ríos','Kendry Páez','Shumaira Mheuka','Max Dowman','Eduardo Felicíssimo','Estêvão Willian','Estevão Willian','Reggie Walsh','Giovanni Leoni','Claudio Echeverri','Wisdom Mike','Victor Froholdt','Quim Junyent','Lucas Michal','Dro','Abdoul Ouattara','Ousmane Diallo','Noah Adedeji-Sternberg','Ben Parkinson','Jarne Steuckers','Callum Olusesi','Omar Janneh','Nasser Djiga','Reigan Heskey','Michael Bresser','Leandro Santos','Pio Esposito','Quentin Ndjantou','João Rego','Franco Mastantuono','Don-Angelo Konadu','Pablo García','Mathis Amougou','Lennart Karl','Guille Fernández','Rio Ngumoha'];
+  return rookieNames.includes(card.player);
+}
+function rookieChecklist(){return checklist.filter(c=>c.set==='Base'&&isRookie(c));}
+
+
+
+function normText(v){
+  return String(v||'')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/[’']/g,'')
+    .toLowerCase()
+    .trim();
+}
+
+function canonicalTeamName(v){
+  const raw = String(v||'').trim();
+  const key = normText(raw);
+  const map = {
+    'barcelona':'FC Barcelona',
+    'fc barcelona':'FC Barcelona',
+    'real madrid':'Real Madrid C.F.',
+    'real madrid cf':'Real Madrid C.F.',
+    'arsenal':'Arsenal FC',
+    'arsenal fc':'Arsenal FC',
+    'liverpool':'Liverpool FC',
+    'liverpool fc':'Liverpool FC',
+    'chelsea':'Chelsea FC',
+    'chelsea fc':'Chelsea FC',
+    'man city':'Manchester City',
+    'manchester city':'Manchester City',
+    'bayern':'FC Bayern München',
+    'bayern munich':'FC Bayern München',
+    'fc bayern munchen':'FC Bayern München',
+    'fc bayern münchen':'FC Bayern München',
+    'psg':'Paris Saint-Germain',
+    'paris saint germain':'Paris Saint-Germain',
+    'inter milan':'FC Internazionale Milano',
+    'fc internazionale milano':'FC Internazionale Milano',
+    'legend':'Legend',
+    'legends':'Legend'
+  };
+  return map[key] || raw;
+}
+
+function teamKey(v){
+  return normText(canonicalTeamName(v));
+}
+
+const premiumTeams = ['Real Madrid C.F.','FC Barcelona','Liverpool FC','Arsenal FC','Chelsea FC','Manchester City','FC Bayern München','Paris Saint-Germain','Legend'];
+const chaseRookies = ['Max Dowman','Rio Ngumoha','Lennart Karl','Estêvão Willian','Franco Mastantuono','Jobe Bellingham','Pau Cubarsí'];
+
+function allTeamSlots(){
+  return [...new Set(pool.filter(c=>c.team && c.team !== 'Unassigned').map(c=>canonicalTeamName(c.team)))].sort();
+}
+
+function rookieTeamSlots(){
+  return [...new Set(pool.filter(c=>c.rookie && c.team && c.team !== 'Unassigned').map(c=>canonicalTeamName(c.team)))].sort();
+}
+
+function standardSlotOptions(){
+  return allTeamSlots().map(team=>({label:team,type:'team',value:team,price:premiumTeams.includes(team)?2200:1300}));
+}
+
+function rookieSlotOptions(){
+  const teams = rookieTeamSlots().map(team=>({label:team,type:'team',value:team,price:premiumTeams.includes(team)?2600:1700}));
+  const players = chaseRookies.map(p=>({label:p,type:'player',value:p,price:4200}));
+  return players.concat([{label:'All Other Rookies',type:'rookieOther',value:'All Other Rookies',price:2800}],teams);
+}
+
+function delightSlotOptions(){
+  return allTeamSlots().map(team=>({label:team,type:'team',value:team,price:premiumTeams.includes(team)?6500:4200}));
+}
+
+function randomTeamOptions(kind){
+  return [{label:'Random Team',type:'randomTeam',value:'Random Team',price:kind==='delight'?3200:kind==='rookie'?1300:900}];
+}
+
+const breakListings=[
+  {id:'standard_hobby',breaker:'camxoncards',title:'UCC Chrome Hobby Box',desc:'Standard hobby box rules',viewers:17,kind:'standard',slotOptions:standardSlotOptions,chases:['Yamal Anime','Mbappé Floodlights','Messi Auto']},
+  {id:'standard_random',breaker:'valuebreaks',title:'Random Team Hobby',desc:'Cheaper random team entry',viewers:11,kind:'standard',slotOptions:function(){return randomTeamOptions('standard')},chases:['Random Barça','Auto Chance','SSP Chance']},
+  {id:'rookie_chase',breaker:'pulsemax',title:'Rookie Chase Break',desc:'Team slots + individual rookie chases',viewers:9,kind:'rookie',slotOptions:rookieSlotOptions,css:'chaseGlow',chases:['Max Dowman','Rio Ngumoha','Lennart Karl']},
+  {id:'breakers_delight',breaker:'zndbreaks',title:'Breaker’s Delight Chrome',desc:'3 autos · 5 numbered · 2 SSPs',viewers:31,kind:'delight',slotOptions:delightSlotOptions,css:'delightGlow',chases:['3 Autos','2 SSPs','5 Numbered']}
+
+,{id:'hobby_case',title:'Hobby Case Break',kind:'case_hobby',viewerBase:520,price:8500,mode:'hits',desc:'12 Hobby Boxes · Hits Only · Guaranteed Colour Blast'}
+,{id:'delight_case',title:'Breaker’s Delight Case',kind:'case_delight',viewerBase:920,price:18000,mode:'hits',desc:'6 Breaker’s Delight Boxes · Hits Only · Guaranteed Blacklight'}
+];
+
+let activeBreak=null;
+let activeSlots=[];
+let breakCards=[];
+let breakPacks=[];
+let breakPackIndex=0;
+let breakCardIndex=0;
+let breakWins=[];
+let breakRunning=false;
+let breakAllHits=[];
+let breakChases=[];
+let breakEntryCost=0;
+let breakHistory=[];
+let fillTimer=null;
+const breakBaskets={};
+
+function renderBreaks(){
+  const feed=document.getElementById('breaksFeed');
+  if(!feed) return;
+  feed.innerHTML=breakListings.map(function(b){
+    const options=b.slotOptions();
+    const chaseHtml=b.chases.map(function(ch){
+      const cls=b.kind==='delight'?'kaleidoscope':b.kind==='rookie'?'future':'colour';
+      return '<div class="chaseCard '+cls+'">'+ch+'</div>';
+    }).join('');
+    const optionHtml=options.map(function(slot,i){
+      return '<option value="'+i+'">'+slot.label+(slot.type==='randomTeam'?' 🎲':'')+'</option>';
+    }).join('');
+    return '<div class="breakTile '+(b.css||'')+'">'+
+      '<div class="breakImage"><div class="liveBadge">Live • '+b.viewers+'</div>'+b.title+'</div>'+
+      '<div class="breakBody">'+
+        '<h3>'+b.breaker+'</h3>'+
+        '<div class="breakMeta">'+b.desc+'</div>'+
+        '<div class="chaseStrip">'+chaseHtml+'</div>'+
+        '<select class="breakSelect" id="slot_'+b.id+'" onchange="updateBreakPrice(&quot;'+b.id+'&quot;)">'+optionHtml+'</select>'+
+        '<div class="breakPrice" id="price_'+b.id+'">'+options[0].price.toLocaleString()+' coins</div>'+(b.kind==='delight'?'':'<div class="ticketNotice">Ticket eligible: 1 spot</div>')+
+        '<button onclick="addSlotToBasket(&quot;'+b.id+'&quot;)">Add Spot</button>'+
+        '<div class="basketPanel">'+
+          '<strong>Your Spots</strong> <span class="smallText">(max 3)</span>'+
+          '<div class="basketItems" id="basketItems_'+b.id+'"><div class="smallText">No spots selected.</div></div>'+
+          '<div class="basketActions">'+
+            '<button onclick="joinBreakWithBasket(&quot;'+b.id+'&quot;)">Join Break</button><button class="secondary" onclick="joinBreakWithTicket(&quot;'+b.id+'&quot;)">Use Ticket</button>'+
+            '<button class="secondary" onclick="clearBasket(&quot;'+b.id+'&quot;)">Clear</button>'+
+          '</div>'+
+          '<div class="breakPrice" id="basketTotal_'+b.id+'">Total: 0 coins</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  breakListings.forEach(function(b){renderBasket(b.id);});
+  renderBreakHistory();
+}
+
+function updateBreakPrice(breakId){
+  const b=breakListings.find(x=>x.id===breakId);
+  const select=document.getElementById('slot_'+breakId);
+  if(!b || !select) return;
+  const slot=b.slotOptions()[parseInt(select.value)];
+  const price=document.getElementById('price_'+breakId);
+  if(price) price.innerText=slot.price.toLocaleString()+' coins';
+}
+
+function getSelectedSlot(breakId){
+  const b=breakListings.find(x=>x.id===breakId);
+  const select=document.getElementById('slot_'+breakId);
+  const slot=Object.assign({},b.slotOptions()[parseInt(select.value)]);
+  if(slot.type==='randomTeam'){
+    const teams=b.kind==='rookie'?rookieTeamSlots():allTeamSlots();
+    const assigned=teams[Math.floor(Math.random()*teams.length)];
+    slot.label='Random Team → '+assigned;
+    slot.type='team';
+    slot.value=assigned;
+    slot.random=true;
+  }
+  return slot;
+}
+
+function addSlotToBasket(breakId){
+  if(!breakBaskets[breakId]) breakBaskets[breakId]=[];
+  if(breakBaskets[breakId].length>=3){
+    alert('Maximum 3 spots per break.');
+    return;
+  }
+
+  const selectedSlot = getSelectedSlot(breakId);
+
+  if(selectedSlot.random){
+    if(!confirm('Random team spots are locked once assigned. Continue?')){
+      return;
+    }
+  }
+
+  breakBaskets[breakId].push(selectedSlot);
+  renderBasket(breakId);
+}
+
+function clearBasket(breakId){
+  const items = breakBaskets[breakId] || [];
+  if(items.some(s=>s.random)){
+    alert('Random team spots are locked once assigned.');
+    return;
+  }
+  breakBaskets[breakId]=[];
+  renderBasket(breakId);
+}
+
+function removeBasketSlot(breakId,index){
+  if(!breakBaskets[breakId]) return;
+  breakBaskets[breakId].splice(index,1);
+  renderBasket(breakId);
+}
+
+function renderBasket(breakId){
+  const items=breakBaskets[breakId]||[];
+  const list=document.getElementById('basketItems_'+breakId);
+  const totalEl=document.getElementById('basketTotal_'+breakId);
+  if(!list||!totalEl) return;
+  if(!items.length){
+    list.innerHTML='<div class="smallText">No spots selected.</div>';
+  }else{
+    list.innerHTML=items.map(function(s,i){
+      const removeButton = s.random ? '<span class="smallText">Locked</span>' : '<button class="secondary" onclick="removeBasketSlot(&quot;'+breakId+'&quot;,'+i+')">x</button>';
+      return '<div class="basketItem"><span>'+s.label+(s.random?'<span class="randomTag">RANDOM</span>':'')+'</span><strong>'+s.price.toLocaleString()+'</strong>'+removeButton+'</div>';
+    }).join('');
+  }
+  totalEl.innerText='Total: '+items.reduce((a,s)=>a+s.price,0).toLocaleString()+' coins';
+}
+
+
+function forceClearBasket(breakId){
+  breakBaskets[breakId]=[];
+  renderBasket(breakId);
+}
+
+
+function joinBreakWithTicket(breakId){
+  const b=breakListings.find(x=>x.id===breakId);
+  const slots=breakBaskets[breakId]||[];
+  if(!slots.length){
+    alert('Add one spot first.');
+    return;
+  }
+  if(slots.length!==1){
+    alert('A break ticket can only be used for one spot.');
+    return;
+  }
+  if((stats.breakTickets||0)<=0){
+    alert('You do not have any break tickets.');
+    return;
+  }
+  if(b.kind==='delight'){
+    alert('Break tickets cannot be used on Breaker’s Delight yet.');
+    return;
+  }
+  if(!confirm('Use 1 Break Ticket for this spot?')){
+    return;
+  }
+  stats.breakTickets = Math.max(0,(stats.breakTickets||0)-1);
+  buyBreakSlots(b,slots,0);
+}
+
+function joinBreakWithBasket(breakId){
+  const b=breakListings.find(x=>x.id===breakId);
+  const slots=breakBaskets[breakId]||[];
+  if(!slots.length){
+    alert('Add at least one spot first.');
+    return;
+  }
+  const total=slots.reduce((a,s)=>a+s.price,0);
+  if(coins<total){
+    alert('Not enough coins for these spots.');
+    return;
+  }
+  if(!confirm('Join '+b.title+' with '+slots.length+' spot(s) for '+total.toLocaleString()+' coins?')) return;
+  buyBreakSlots(b,slots,total);
+}
+
+function resetBreakSummaryState(){
+  breakWins=[];
+  breakAllHits=[];
+  breakPackIndex=0;
+  breakCardIndex=0;
+  breakRunning=false;
+  const summaryBox=document.getElementById('breakSummary');
+  if(summaryBox){
+    summaryBox.classList.remove('show');
+    summaryBox.innerHTML='';
+  }
+}
+
+function buildBreakersDelightPacks(){
+  const packs=[];
+  for(let i=0;i<10;i++){
+    const pack=[];
+    const used=new Set();
+    const bases=pool.filter(c=>c.type==='base');
+    const inserts=pool.filter(c=>c.type==='insert');
+    for(let j=0;j<2;j++) pack.push(drawUnique(bases,used));
+    pack.push(drawUnique(inserts,used));
+    pack.push(drawUnique(inserts,used));
+    packs.push(pack);
+  }
+  function randInt(max){return Math.floor(Math.random()*max);}
+  function uniquePositions(count){
+    const pos=[];
+    while(pos.length<count){
+      const p=[randInt(10),randInt(4)];
+      if(!pos.some(x=>x[0]===p[0]&&x[1]===p[1])) pos.push(p);
+    }
+    return pos;
+  }
+  const autoPool=pool.filter(c=>c.type==='auto');
+  uniquePositions(3).forEach(function(pos){packs[pos[0]][pos[1]]={...autoPool[Math.floor(Math.random()*autoPool.length)]};});
+  const numberedPool=pool.filter(c=>c.type==='base'||c.type==='insert');
+  uniquePositions(5).forEach(function(pos){packs[pos[0]][pos[1]]=addGuaranteedNumbered({...numberedPool[Math.floor(Math.random()*numberedPool.length)]});});
+  const sspPool=pool.filter(c=>c.type==='ssp');
+  uniquePositions(2).forEach(function(pos){packs[pos[0]][pos[1]]={...sspPool[Math.floor(Math.random()*sspPool.length)]};});
+  return packs;
+}
+
+function buyBreakSlots(b,slots,total){
+  coins-=total;
+  stats.breaksJoined = (stats.breaksJoined || 0) + 1;
+  stats.breakSpotsBought = (stats.breakSpotsBought || 0) + slots.length;
+  syncStats();
+  renderObjectives();
+  activeBreak=b;
+  activeSlots=slots;
+  activeBreak.currentViewers = b.viewers;
+  breakChases = pickBreakChases(b);
+  breakEntryCost = total;
+  breakPacks=(b.kind==='delight'?buildBreakersDelightPacks():buildHobbyBoxPacks());
+  breakCards=breakPacks.flat();
+  resetBreakSummaryState();
+  forceClearBasket(b.id);
+  document.getElementById('breaksHub').style.display='none';
+  document.getElementById('breakStream').classList.add('show');
+  streamBreaker.innerText=b.breaker;
+  viewerCount.innerText='Live • '+b.viewers;
+  breakInfo.innerText='Your spots: '+slots.map(s=>s.label).join(', ');
+  streamCardArea.innerHTML=renderStreamChaseBoard()+'<div style="text-align:center;color:#cfd6ea;"><h2>'+b.title+'</h2><p>Your spots: '+slots.map(s=>s.label).join(', ')+'</p></div>';
+  if(document.getElementById('startBreakBtn')) document.getElementById('startBreakBtn').disabled=false;
+  seedChat();
+  simulateFill(b);
+  breakStream.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+
+function simulateFill(b){
+  const existing=document.getElementById('fillLobby');
+  if(existing) existing.remove();
+
+  const totalSpots = b.kind==='delight' ? 18 : b.kind==='rookie' ? 16 : 12;
+  let sold = activeSlots.length;
+  let left = totalSpots - sold;
+
+  const box=document.createElement('div');
+  box.className='fillLobby show';
+  box.id='fillLobby';
+  box.innerHTML=
+    '<h3>Live Fill</h3>'+
+    '<p id="fillStatus">'+left+' spots left...</p>'+
+    '<div class="fillStatusBar"><div class="fillStatusInner" id="fillStatusInner" style="width:'+((sold/totalSpots)*100)+'%"></div></div>'+
+    '<div class="fillHype" id="fillHype">Room opening...</div>'+
+    '<div class="fillLog" id="fillLog"></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;"><button onclick="startBreakReveal()">Start Break Now</button></div>';
+
+  document.getElementById('breakStream').querySelector('.streamLayout').before(box);
+
+  const names=['cardhunter23','rookiechaser','casehitking','slabgod','toploaderfc','waxhunter','chromelegend','futeraaddict','pullcity','soccerwax','breakjunkie'];
+  const fillerTeams=['Barcelona','Chelsea','Arsenal','Liverpool','Madrid','PSG','Bayern','Inter','Dortmund'];
+  const hypeLines=['Room filling...','Big teams still available','Chat wants a monster SSP','Last spot mojo incoming','People joining fast now','Premium room heating up','Huge chase still live'];
+
+  function updateUI(){
+    const status=document.getElementById('fillStatus');
+    const bar=document.getElementById('fillStatusInner');
+    const hype=document.getElementById('fillHype');
+
+    if(status) status.innerText = left > 0 ? left+' spots left...' : 'Sold out. Break starting!';
+    if(bar) bar.style.width = ((sold/totalSpots)*100)+'%';
+    if(hype) hype.innerText = hypeLines[Math.floor(Math.random()*hypeLines.length)];
+  }
+
+  updateUI();
+  clearInterval(fillTimer);
+
+  fillTimer=setInterval(function(){
+
+    const swing = Math.floor(Math.random()*7)-2;
+    activeBreak.currentViewers = Math.max(5,(activeBreak.currentViewers || activeBreak.viewers || 0)+swing);
+    viewerCount.innerText='Live • '+activeBreak.currentViewers;
+ const modeEl=document.getElementById('breakModeLabel');
+ if(modeEl && activeBreak && activeBreak.mode==='hits'){
+   modeEl.innerText='HITS ONLY';
+ }
+
+    if(Math.random() < 0.28){
+      addChat('<strong>chat:</strong> waiting on last spots');
+      return;
+    }
+
+    const multiBuy = Math.random() < 0.18 ? 2 : 1;
+
+    for(let i=0;i<multiBuy;i++){
+      if(left <= 0) break;
+
+      sold++;
+      left--;
+
+      const name = names[Math.floor(Math.random()*names.length)];
+      const team = fillerTeams[Math.floor(Math.random()*fillerTeams.length)];
+
+      const log=document.getElementById('fillLog');
+      if(log){
+        const line = Math.random() < 0.35
+          ? '<div><strong>'+name+'</strong> grabbed '+team+'</div>'
+          : '<div><strong>'+name+'</strong> bought a spot</div>';
+        log.innerHTML += line;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      if(left === 1){
+        addChat('<strong>chat:</strong> LAST SPOT MOJO');
+      }
+
+      if(Math.random() < 0.22){
+        addChat('<strong>chat:</strong> this room is loaded');
+      }
+    }
+
+    updateUI();
+
+    if(left <= 0){
+      clearInterval(fillTimer);
+
+      setTimeout(function(){
+        const hype=document.getElementById('fillHype');
+        if(hype) hype.innerText='BREAK STARTING';
+      },500);
+
+      setTimeout(function(){
+        if(!breakRunning) startBreakReveal();
+      },1500);
+    }
+
+  }, b.kind==='delight' ? 1350 : 950);
+}
+
+
+function pickBreakChases(b){
+  return (b && b.chases ? b.chases : []).slice(0,3).map(function(label){
+    return {label:label,pulled:false};
+  });
+}
+
+function renderStreamChaseBoard(){
+  return '';
+}
+
+function updateChaseBoardForCard(card){
+  return;
+}
+
+function renderBreakHistory(){
+  const list=document.getElementById('breakHistoryList');
+  if(!list) return;
+  if(!breakHistory || !breakHistory.length){
+    list.innerHTML='<div class="smallText">No breaks completed yet.</div>';
+    return;
+  }
+  list.innerHTML=breakHistory.slice(-6).reverse().map(function(h){
+    const roiClass=h.roi>=0?'roiPositive':'roiNegative';
+    return '<div class="breakHistoryItem"><strong>'+h.title+'</strong><br><span class="smallText">'+h.spots+' spot(s) · '+h.cards+' cards won · Best: '+h.best+'</span><br><span class="'+roiClass+'">ROI: '+(h.roi>=0?'+':'')+h.roi.toLocaleString()+'</span></div>';
+  }).join('');
+}
+
+function saveBreakHistory(totalValue,best){
+  const title=activeBreak ? activeBreak.title : 'Break';
+  breakHistory.push({
+    title:title,
+    spots:activeSlots.length,
+    cards:breakWins.length,
+    value:totalValue,
+    cost:breakEntryCost,
+    roi:totalValue-breakEntryCost,
+    best:best?best.player:'-'
+  });
+  renderBreakHistory();
+}
+
+
+
+function breakerLine(card,isHit,mine){
+  if(mine) return 'WHO HAD '+activeSlots.map(function(s){return s.label;}).join(' / ')+'?!';
+  if(card.type==='ssp') return 'SSP! Chat, that is massive.';
+  if(card.type==='auto') return 'AUTO time. Big card on stream.';
+  if(card.parallel) return 'Numbered card, nice hit.';
+  if(isHit) return 'Insert spot, clean pull.';
+  const baseLines=['base rolling','next card','keeping it moving','nice name'];
+  return baseLines[Math.floor(Math.random()*baseLines.length)];
+}
+
+function chatReact(card,mine){
+  const reactions = mine
+    ? ['W pull','that is yours!','massive spot win','Phil eating','hold that one','unreal spot choice','what a break for you']
+    : card.type==='ssp'
+      ? ['NO WAY','case hit energy','that card is crazy','monster pull']
+      : card.type==='auto'
+        ? ['AUTO!!','who had them?','big ink','that is clean']
+        : card.parallel
+          ? ['numbered hit','solid pull','nice colour']
+          : ['nice','keep going','next pack'];
+  addChat('<strong>chat:</strong> '+reactions[Math.floor(Math.random()*reactions.length)]);
+}
+
+function bumpViewers(amount){
+  if(!activeBreak) return;
+  activeBreak.currentViewers = (activeBreak.currentViewers || activeBreak.viewers || 0) + amount;
+  viewerCount.innerText='Live • '+activeBreak.currentViewers;
+ const modeEl=document.getElementById('breakModeLabel');
+ if(modeEl && activeBreak && activeBreak.mode==='hits'){
+   modeEl.innerText='HITS ONLY';
+ }
+}
+
+
+function seedChat(){
+  chatPanel.innerHTML=['<strong>cam:</strong> good luck everyone','<strong>sam:</strong> need a Yamal here','<strong>breakbot:</strong> slots locked','<strong>phil:</strong> come on hits','<strong>max:</strong> big auto incoming'].map(x=>'<div class="chatLine">'+x+'</div>').join('');
+}
+
+function addChat(line){
+  chatPanel.innerHTML+='<div class="chatLine">'+line+'</div>';
+  chatPanel.scrollTop=chatPanel.scrollHeight;
+}
+
+function cardMatchesSlotObject(card,slot){
+  const activePlayer=normText(slot.value);
+  const activeTeam=teamKey(slot.value);
+  const player=normText(card.player);
+  const cardTeam=teamKey(card.team);
+  const slots=(card.slotTeams||[card.team]).map(teamKey);
+  if(slot.type==='player') return player===activePlayer;
+  if(slot.type==='rookieOther') return card.rookie && !chaseRookies.map(normText).includes(player);
+  if(slot.type==='team') return slots.includes(activeTeam)||cardTeam===activeTeam;
+  return false;
+}
+
+function cardWinningSlots(card){
+  return activeSlots.filter(slot=>cardMatchesSlotObject(card,slot));
+}
+
+function startBreakReveal(){
+  if(breakRunning) return;
+  clearInterval(fillTimer);
+  const lobby=document.getElementById('fillLobby');
+  if(lobby) lobby.remove();
+  breakWins=[];
+  breakAllHits=[];
+  breakPackIndex=0;
+  breakCardIndex=0;
+  breakRunning=true;
+  startBreakBtn.disabled=true;
+  showNextBreakPack();
+}
+
+function showNextBreakPack(){
+  if(!breakRunning) return;
+  if(breakPackIndex>=breakPacks.length){
+    endBreak();
+    return;
+  }
+  streamCardArea.innerHTML=renderStreamChaseBoard()+'<div class="breakPack" onclick="revealBreakCard()">PACK<br>'+(breakPackIndex+1)+'/10</div>';
+  breakInfo.innerText='Pack '+(breakPackIndex+1)+'/10 ready';
+  setTimeout(revealBreakCard, 850);
+}
+
+function revealBreakCard(){
+  if(!breakRunning) return;
+  const currentPack=breakPacks[breakPackIndex];
+  if(!currentPack){
+    endBreak();
+    return;
+  }
+  if(breakCardIndex>=currentPack.length){
+    breakPackIndex++;
+    breakCardIndex=0;
+    setTimeout(showNextBreakPack, 850);
+    return;
+  }
+
+  const c=currentPack[breakCardIndex];
+  const winningSlots=cardWinningSlots(c);
+  const mine=winningSlots.length>0;
+  const isHit=c.type==='insert'||c.type==='ssp'||c.type==='auto'||c.parallel;
+  const isBigHit=c.type==='ssp'||c.type==='auto'||c.parallel;
+
+  if(isHit){ breakAllHits.push({...c,mine}); updateChaseBoardForCard(c); }
+
+  const hitLabel=isHit?'<div class="breakHitLabel">'+(c.parallel?'NUMBERED':c.type==='auto'?'AUTO':c.type==='ssp'?'SSP':'INSERT')+'</div>':'';
+  const boom=isBigHit?'<div class="bigHitBurst">BOOM</div>':'';
+  const comment='<div class="breakerComment">'+breakerLine(c,isHit,mine)+'</div>';
+
+  streamCardArea.innerHTML=renderStreamChaseBoard()+'<div class="packCounter">Pack '+(breakPackIndex+1)+'/10 · Card '+(breakCardIndex+1)+'/'+currentPack.length+'</div>'+hitLabel+comment+boom+'<div class="breakCard '+c.cls+' '+(mine?'yourHit':'')+'">'+initials(c.player)+'</div>';
+  breakInfo.innerText=c.player+' · '+(c.team||c.set);
+
+  if(mine){
+    winningSlots.forEach(function(slot){
+      collection.push({...c,source:'break'});
+      breakWins.push({...c,wonSlot:slot.label});
+      stats.breakCardsWon = (stats.breakCardsWon || 0) + 1;
+      if(c.type==='auto') stats.breakAutos = (stats.breakAutos || 0) + 1;
+      if(c.type==='ssp') stats.breakSSPs = (stats.breakSSPs || 0) + 1;
+      if(c.parallel) stats.breakNumbered = (stats.breakNumbered || 0) + 1;
+    });
+    addChat('<strong>HIT:</strong> '+winningSlots.map(s=>s.label).join(' + ')+' hit! '+c.player);
+    chatReact(c,true);
+    bumpViewers(isBigHit?18:7);
+    syncStats();
+    renderObjectives();
+  }else{
+    if(c.type==='ssp'||c.type==='auto'||c.parallel){
+      addChat('<strong>chat:</strong> monster '+c.set+' for '+(c.team||c.player));
+      chatReact(c,false);
+      bumpViewers(c.type==='ssp'?14:c.type==='auto'?10:5);
+    }else if(isHit){
+      chatReact(c,false);
+      bumpViewers(2);
+    }
+  }
+
+  breakCardIndex++;
+  const delay=isBigHit?2600:isHit?1900:850;
+  setTimeout(revealBreakCard, mine?Math.max(delay,1900):delay);
+}
+
+function endBreak(){
+  breakRunning=false;
+  startBreakBtn.disabled=false;
+  const total=breakWins.reduce((s,c)=>s+c.value,0);
+  const best=[...breakWins].sort((a,b)=>b.value-a.value)[0];
+  const allHitsSorted=[...breakAllHits].sort((a,b)=>b.value-a.value);
+  const topBoxHits=allHitsSorted.slice(0,3);
+  const roi=total-breakEntryCost;
+  saveBreakHistory(total,best);
+  breakInfo.innerText='Break complete';
+  breakSummary.classList.add('show');
+
+  const hitsHtml=allHitsSorted.length ? allHitsSorted.map(function(c){
+    return '<div class="breakWinTile breakSummaryHit '+(c.mine?'mine':'')+'"><div class="breakWinCard '+c.cls+'">'+initials(c.player)+'</div><div class="pullValue">'+c.player+'</div><div class="pullValue">'+(c.team||c.set)+'</div><div class="pullValue">'+(c.parallel?c.parallel:c.type.toUpperCase())+'</div></div>';
+  }).join('') : '<p>No major box hits.</p>';
+
+  const winsHtml=breakWins.length ? breakWins.map(function(c){
+    return '<div class="breakWinTile"><div class="breakWinCard '+c.cls+'">'+initials(c.player)+'</div><div class="pullValue">'+c.player+'</div><div class="pullValue">'+(c.wonSlot||'')+'</div><div class="pullValue">'+c.value.toLocaleString()+'</div></div>';
+  }).join('') : '<p>No cards for your spots this break.</p>';
+
+  const spotlight = best ? '<div class="bestHitSpotlight"><div class="bestHitCard '+best.cls+'">'+initials(best.player)+'</div><div><strong>Your Best Hit</strong><br>'+best.player+'<br><span class="smallText">'+(best.wonSlot||best.team||best.set)+' · '+best.value.toLocaleString()+'</span></div></div>' : '';
+  const topHitsHtml = topBoxHits.length ? '<h3>Top 3 Box Hits</h3><div class="topHitsRow">'+topBoxHits.map(function(c){return '<div class="breakWinTile breakSummaryHit '+(c.mine?'mine':'')+'"><div class="breakWinCard '+c.cls+'">'+initials(c.player)+'</div><div class="pullValue">'+c.player+'</div><div class="pullValue">'+(c.parallel?c.parallel:c.type.toUpperCase())+'</div></div>';}).join('')+'</div>' : '';
+  breakSummary.innerHTML='<h2>Break Summary</h2>'+spotlight+topHitsHtml+'<div class="summaryGrid"><div class="sumBox"><strong>'+breakWins.length+'</strong>Cards Won</div><div class="sumBox"><strong>'+total.toLocaleString()+'</strong>Your Value</div><div class="sumBox"><strong>'+allHitsSorted.length+'</strong>Box Hits</div><div class="sumBox"><strong class="'+(roi>=0?'roiPositive':'roiNegative')+'">'+(roi>=0?'+':'')+roi.toLocaleString()+'</strong>ROI</div></div><h3>Box Hits</h3><div class="breakSummaryGrid">'+hitsHtml+'</div><h3>Your Cards</h3><div class="breakSummaryGrid">'+winsHtml+'</div><br><button onclick="exitBreak()">Close Break</button>';
+  renderBinder();
+  renderObjectives();
+}
+
+function finishBreakEarly(){
+  if(!breakRunning){
+    endBreak();
+    return;
+  }
+  breakPackIndex=breakPacks.length;
+}
+
+function exitBreak(){
+  clearInterval(fillTimer);
+  breakRunning=false;
+  activeBreak=null;
+  activeSlots=[];
+  breakEntryCost=0;
+  breakCards=[];
+  breakPacks=[];
+  resetBreakSummaryState();
+  breakStream.classList.remove('show');
+  breaksHub.style.display='block';
+  renderBreaks();
+  syncStats();
+  breaksHub.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'closeSummaryBtn'){
+    e.preventDefault();
+    e.stopPropagation();
+    closeSummary();
+  }
+});
+
+syncStats();
+</script>
+</body>
+</html
+const blacklightChecklist = [
+{id:'BL-1',player:'Erling Haaland',set:'Blacklight',type:'ssp',team:'Manchester City',cls:'ssp'},
+{id:'BL-2',player:'Max Dowman',set:'Blacklight',type:'ssp',team:'Arsenal',cls:'ssp'},
+{id:'BL-3',player:'Estevão Willian',set:'Blacklight',type:'ssp',team:'Palmeiras',cls:'ssp'},
+{id:'BL-4',player:'Rio Ngumoha',set:'Blacklight',type:'ssp',team:'Liverpool',cls:'ssp'},
+{id:'BL-5',player:'Raphinha',set:'Blacklight',type:'ssp',team:'Barcelona',cls:'ssp'},
+{id:'BL-6',player:'Ousmane Dembélé',set:'Blacklight',type:'ssp',team:'PSG',cls:'ssp'},
+{id:'BL-7',player:'Bruno Fernandes',set:'Blacklight',type:'ssp',team:'Manchester United',cls:'ssp'},
+{id:'BL-8',player:'Cole Palmer',set:'Blacklight',type:'ssp',team:'Chelsea',cls:'ssp'},
+{id:'BL-9',player:'Enzo Fernández',set:'Blacklight',type:'ssp',team:'Chelsea',cls:'ssp'},
+{id:'BL-10',player:'Mohamed Salah',set:'Blacklight',type:'ssp',team:'Liverpool',cls:'ssp'},
+{id:'BL-11',player:'Rayan Cherki',set:'Blacklight',type:'ssp',team:'Lyon',cls:'ssp'},
+{id:'BL-12',player:'Vinícius Jr.',set:'Blacklight',type:'ssp',team:'Real Madrid',cls:'ssp'},
+{id:'BL-13',player:'Michael Olise',set:'Blacklight',type:'ssp',team:'Bayern Munich',cls:'ssp'},
+{id:'BL-14',player:'Harry Kane',set:'Blacklight',type:'ssp',team:'Bayern Munich',cls:'ssp'},
+{id:'BL-15',player:'Lennart Karl',set:'Blacklight',type:'ssp',team:'Bayern Munich',cls:'ssp'}
+];
+
+>
